@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>발걸음 · 나의 여행 지도</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<style>
+  :root{
+    --ink: #1F3D3A;
+    --parchment: #F6F1E7;
+    --parchment-2: #EFE7D6;
+    --orange: #E2723A;
+    --green: #5B8C6E;
+    --gold: #C9A15A;
+    --line: #DCD3BF;
+    --text-soft: #6B6355;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--parchment);color:var(--ink);}
+  #app{display:flex;height:100vh;overflow:hidden;}
+
+  /* ---------- Sidebar ---------- */
+  #sidebar{
+    width:340px;min-width:340px;
+    background:var(--ink);
+    color:var(--parchment);
+    display:flex;flex-direction:column;
+    height:100%;
+  }
+  #brand{
+    padding:22px 20px 14px 20px;
+    border-bottom:1px solid rgba(246,241,231,0.15);
+  }
+  #brand h1{
+    font-family:Georgia,'Times New Roman',serif;
+    font-size:26px;margin:0 0 4px 0;letter-spacing:0.5px;font-weight:600;
+  }
+  #brand p{margin:0;font-size:12.5px;color:#B7C9C2;line-height:1.5;}
+
+  #addForm{
+    padding:16px 20px;
+    border-bottom:1px solid rgba(246,241,231,0.15);
+    display:flex;flex-direction:column;gap:8px;
+  }
+  #addForm .hint{
+    font-size:12px;color:#B7C9C2;background:rgba(246,241,231,0.08);
+    padding:8px 10px;border-radius:6px;line-height:1.5;
+  }
+  #addForm input[type=text]{
+    background:rgba(246,241,231,0.1);
+    border:1px solid rgba(246,241,231,0.25);
+    color:var(--parchment);
+    padding:9px 10px;border-radius:6px;font-size:13.5px;outline:none;
+  }
+  #addForm input[type=text]::placeholder{color:#9FB3AB;}
+  #addForm input[type=text]:focus{border-color:var(--gold);}
+
+  .catRow{display:flex;gap:6px;flex-wrap:wrap;}
+  .catBtn{
+    flex:1;min-width:60px;
+    background:rgba(246,241,231,0.08);
+    border:1px solid rgba(246,241,231,0.2);
+    color:var(--parchment);
+    padding:7px 6px;border-radius:6px;font-size:12.5px;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:2px;
+    transition:all .15s ease;
+  }
+  .catBtn.active{background:var(--gold);border-color:var(--gold);color:#1F3D3A;font-weight:600;}
+  .catBtn:hover{border-color:var(--gold);}
+
+  #customEmojiWrap{display:none;gap:8px;}
+  #customEmojiWrap.show{display:flex;}
+  #customEmojiWrap input{width:60px;text-align:center;font-size:18px;}
+
+  #addBtn{
+    margin-top:4px;background:var(--orange);color:#fff;border:none;
+    padding:10px;border-radius:6px;font-size:13.5px;font-weight:600;cursor:pointer;
+    letter-spacing:0.3px;
+  }
+  #addBtn:hover{background:#cf6733;}
+  #addBtn:disabled{background:#8a8074;cursor:not-allowed;}
+
+  #placingNote{
+    display:none;font-size:12px;color:var(--gold);padding:0 20px;margin-top:-4px;
+  }
+  #placingNote.show{display:block;}
+
+  /* ---------- List ---------- */
+  #listHeader{
+    padding:12px 20px 6px 20px;font-size:11.5px;letter-spacing:1px;
+    color:#9FB3AB;text-transform:uppercase;
+  }
+  #list{flex:1;overflow-y:auto;padding:4px 12px 20px 12px;}
+  .placeCard{
+    background:rgba(246,241,231,0.06);
+    border:1px solid rgba(246,241,231,0.12);
+    border-radius:8px;padding:10px 12px;margin-bottom:8px;
+    display:flex;align-items:flex-start;gap:10px;
+  }
+  .placeCard.visited{opacity:0.6;}
+  .rankBadge{
+    min-width:22px;height:22px;border-radius:50%;
+    background:rgba(246,241,231,0.12);
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;color:#B7C9C2;font-weight:600;flex-shrink:0;margin-top:2px;
+  }
+  .pinIcon{font-size:18px;flex-shrink:0;margin-top:1px;}
+  .cardBody{flex:1;min-width:0;}
+  .cardName{font-size:14px;font-weight:600;color:var(--parchment);word-break:break-word;}
+  .cardMeta{font-size:11px;color:#9FB3AB;margin-top:2px;}
+  .cardActions{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;}
+  .orderBtns{display:flex;flex-direction:column;gap:2px;}
+  .orderBtns button{
+    background:none;border:none;color:#B7C9C2;cursor:pointer;font-size:11px;
+    padding:0;line-height:1;
+  }
+  .orderBtns button:hover{color:var(--gold);}
+  .checkWrap{display:flex;align-items:center;gap:4px;}
+  .checkWrap input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--green);}
+  .checkWrap input[type=checkbox]:disabled{cursor:not-allowed;opacity:0.35;}
+  .delBtn{background:none;border:none;color:#8a6d5c;cursor:pointer;font-size:14px;}
+  .delBtn:hover{color:var(--orange);}
+  .emptyState{color:#8a9891;font-size:12.5px;text-align:center;padding:30px 10px;line-height:1.6;}
+
+  /* ---------- Map ---------- */
+  #map{flex:1;height:100%;}
+  .footPin{
+    width:30px;height:30px;border-radius:50% 50% 50% 0;
+    transform:rotate(-45deg);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 6px rgba(0,0,0,0.35);
+    border:2px solid rgba(255,255,255,0.85);
+  }
+  .footPin span{transform:rotate(45deg);font-size:14px;}
+  .footPin.orange{background:var(--orange);}
+  .footPin.green{background:var(--green);}
+  .footPin.custom{background:var(--gold);border-radius:50%;transform:none;}
+  .footPin.custom span{transform:none;font-size:16px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <div id="brand">
+      <h1>발걸음</h1>
+      <p>지도를 클릭해 가고 싶은 곳을 핀으로 남겨보세요. 목록 위쪽일수록 우선순위가 높아요.</p>
+    </div>
+
+    <div id="addForm">
+      <div class="hint" id="hintText">① 장소 이름과 카테고리를 고른 뒤 → ② 지도를 클릭해 위치를 지정하세요.</div>
+      <input type="text" id="nameInput" placeholder="장소 이름 (예: 스타벅스 홍대점)" />
+
+      <div class="catRow">
+        <div class="catBtn active" data-cat="cafe"><span>☕</span><span>카페</span></div>
+        <div class="catBtn" data-cat="food"><span>🍽️</span><span>식당</span></div>
+        <div class="catBtn" data-cat="sight"><span>🏞️</span><span>관광</span></div>
+        <div class="catBtn" data-cat="custom"><span>✨</span><span>커스텀</span></div>
+      </div>
+
+      <div id="customEmojiWrap">
+        <input type="text" id="emojiInput" maxlength="2" placeholder="🐱" />
+        <span style="font-size:12px;color:#9FB3AB;align-self:center;">원하는 이모티콘을 넣어주세요 (방문 체크 불가)</span>
+      </div>
+
+      <button id="addBtn">지도에서 위치 지정하기</button>
+      <div id="placingNote">📍 지도를 클릭해서 위치를 정해주세요...</div>
+    </div>
+
+    <div id="listHeader">우선순위 목록 (<span id="countText">0</span>)</div>
+    <div id="list"></div>
+  </div>
+  <div id="map"></div>
+</div>
+
+<script>
+const CAT_INFO = {
+  cafe:  { emoji:'☕', label:'카페' },
+  food:  { emoji:'🍽️', label:'식당' },
+  sight: { emoji:'🏞️', label:'관광' },
+  custom:{ emoji:'✨', label:'커스텀' }
+};
+
+let places = [];   // {id, name, category, emoji, lat, lng, visited, marker}
+let idSeq = 1;
+let selectedCat = 'cafe';
+let awaitingClick = false;
+let pendingData = null;
+
+const map = L.map('map', { zoomControl: true }).setView([37.5665, 126.9780], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+const nameInput = document.getElementById('nameInput');
+const addBtn = document.getElementById('addBtn');
+const placingNote = document.getElementById('placingNote');
+const hintText = document.getElementById('hintText');
+const listEl = document.getElementById('list');
+const countText = document.getElementById('countText');
+const customEmojiWrap = document.getElementById('customEmojiWrap');
+const emojiInput = document.getElementById('emojiInput');
+
+document.querySelectorAll('.catBtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.catBtn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedCat = btn.dataset.cat;
+    customEmojiWrap.classList.toggle('show', selectedCat === 'custom');
+  });
+});
+
+function makeIcon(category, visited, emoji){
+  let cls, symbol;
+  if(category === 'custom'){
+    cls = 'footPin custom';
+    symbol = emoji || '✨';
+  } else {
+    cls = 'footPin ' + (visited ? 'green' : 'orange');
+    symbol = CAT_INFO[category].emoji;
+  }
+  return L.divIcon({
+    className: '',
+    html: `<div class="${cls}"><span>${symbol}</span></div>`,
+    iconSize: [30,30],
+    iconAnchor: category==='custom' ? [15,15] : [15,30]
+  });
+}
+
+addBtn.addEventListener('click', ()=>{
+  const name = nameInput.value.trim();
+  if(!name){ alert('장소 이름을 입력해주세요.'); nameInput.focus(); return; }
+  if(selectedCat === 'custom' && !emojiInput.value.trim()){
+    alert('커스텀 핀에 사용할 이모티콘을 입력해주세요.'); emojiInput.focus(); return;
+  }
+  pendingData = { name, category: selectedCat, emoji: emojiInput.value.trim() };
+  awaitingClick = true;
+  placingNote.classList.add('show');
+  addBtn.disabled = true;
+  hintText.textContent = '지도 위 원하는 위치를 클릭하면 핀이 등록됩니다.';
+});
+
+map.on('click', (e)=>{
+  if(!awaitingClick || !pendingData) return;
+  const { lat, lng } = e.latlng;
+  const place = {
+    id: idSeq++,
+    name: pendingData.name,
+    category: pendingData.category,
+    emoji: pendingData.emoji,
+    lat, lng,
+    visited: false,
+    marker: null
+  };
+  const marker = L.marker([lat,lng], { icon: makeIcon(place.category, false, place.emoji) }).addTo(map);
+  place.marker = marker;
+  places.push(place);
+
+  awaitingClick = false;
+  pendingData = null;
+  placingNote.classList.remove('show');
+  addBtn.disabled = false;
+  hintText.textContent = '① 장소 이름과 카테고리를 고른 뒤 → ② 지도를 클릭해 위치를 지정하세요.';
+  nameInput.value = '';
+  emojiInput.value = '';
+
+  renderList();
+});
+
+function toggleVisited(id, checked){
+  const p = places.find(x=>x.id===id);
+  if(!p || p.category === 'custom') return;
+  p.visited = checked;
+  p.marker.setIcon(makeIcon(p.category, p.visited, p.emoji));
+  renderList();
+}
+
+function move(id, dir){
+  const idx = places.findIndex(x=>x.id===id);
+  const newIdx = idx + dir;
+  if(newIdx < 0 || newIdx >= places.length) return;
+  [places[idx], places[newIdx]] = [places[newIdx], places[idx]];
+  renderList();
+}
+
+function removePlace(id){
+  const idx = places.findIndex(x=>x.id===id);
+  if(idx === -1) return;
+  places[idx].marker.remove();
+  places.splice(idx,1);
+  renderList();
+}
+
+function renderList(){
+  countText.textContent = places.length;
+  if(places.length === 0){
+    listEl.innerHTML = '<div class="emptyState">아직 등록한 장소가 없어요.<br>위에서 장소를 추가하고 지도를 클릭해보세요 🗺️</div>';
+    return;
+  }
+  listEl.innerHTML = places.map((p, i)=>{
+    const info = p.category === 'custom' ? { emoji: p.emoji || '✨', label:'커스텀' } : CAT_INFO[p.category];
+    const disabled = p.category === 'custom' ? 'disabled' : '';
+    return `
+    <div class="placeCard ${p.visited ? 'visited':''}">
+      <div class="rankBadge">${i+1}</div>
+      <div class="pinIcon">${info.emoji}</div>
+      <div class="cardBody">
+        <div class="cardName">${escapeHtml(p.name)}</div>
+        <div class="cardMeta">${info.label}${p.visited ? ' · 방문완료' : ''}</div>
+      </div>
+      <div class="cardActions">
+        <div class="orderBtns">
+          <button onclick="move(${p.id},-1)" title="우선순위 위로">▲</button>
+          <button onclick="move(${p.id},1)" title="우선순위 아래로">▼</button>
+        </div>
+        <div class="checkWrap">
+          <input type="checkbox" ${p.visited?'checked':''} ${disabled}
+            onchange="toggleVisited(${p.id}, this.checked)" title="${p.category==='custom' ? '커스텀 핀은 방문 체크가 불가능해요' : '다녀왔으면 체크하세요'}">
+        </div>
+        <button class="delBtn" onclick="removePlace(${p.id})" title="삭제">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+renderList();
+
+// 내 위치로 지도 이동 시도 (실패해도 무시)
+if(navigator.geolocation){
+  navigator.geolocation.getCurrentPosition(
+    pos => map.setView([pos.coords.latitude, pos.coords.longitude], 13),
+    () => {}
+  );
+}
+</script>
+</body>
+</html>
