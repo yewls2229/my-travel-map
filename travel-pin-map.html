@@ -4,8 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>발걸음 · 나의 여행 지도</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=bbcf39840e4999a45a371a2c7a7bf4d5&autoload=false"></script>
 <style>
   :root{
     --ink: #1F3D3A;
@@ -110,6 +109,14 @@
   .cardBody{flex:1;min-width:0;}
   .cardName{font-size:14px;font-weight:600;color:var(--parchment);word-break:break-word;}
   .cardMeta{font-size:11px;color:#9FB3AB;margin-top:2px;}
+  .memoBox{
+    width:100%;margin-top:6px;background:rgba(246,241,231,0.08);
+    border:1px solid rgba(246,241,231,0.18);border-radius:5px;
+    color:var(--parchment);font-size:12px;padding:5px 7px;
+    resize:vertical;min-height:28px;font-family:inherit;
+  }
+  .memoBox::placeholder{color:#8a9891;}
+  .memoBox:focus{outline:none;border-color:var(--gold);}
   .cardActions{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;}
   .orderBtns{display:flex;flex-direction:column;gap:2px;}
   .orderBtns button{
@@ -182,17 +189,33 @@ const CAT_INFO = {
   custom:{ emoji:'✨', label:'커스텀' }
 };
 
-let places = [];   // {id, name, category, emoji, lat, lng, visited, marker}
+let places = [];   // {id, name, category, emoji, lat, lng, visited, memo, overlay}
 let idSeq = 1;
+let map; // kakao.maps.Map 인스턴스 (SDK 로드 후 생성됨)
+
+function saveToStorage(){
+  const data = places.map(p => ({
+    id: p.id, name: p.name, category: p.category,
+    emoji: p.emoji, lat: p.lat, lng: p.lng, visited: p.visited,
+    memo: p.memo || ''
+  }));
+  localStorage.setItem('travelPins', JSON.stringify(data));
+}
+
+function loadFromStorage(){
+  const raw = localStorage.getItem('travelPins');
+  if(!raw) return;
+  let saved;
+  try{ saved = JSON.parse(raw); } catch(e){ return; }
+  saved.forEach(p=>{
+    const overlay = createOverlay(p.lat, p.lng, p.category, p.visited, p.emoji);
+    places.push({ ...p, overlay });
+    if(p.id >= idSeq) idSeq = p.id + 1;
+  });
+}
 let selectedCat = 'cafe';
 let awaitingClick = false;
 let pendingData = null;
-
-const map = L.map('map', { zoomControl: true }).setView([37.5665, 126.9780], 12);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map);
 
 const nameInput = document.getElementById('nameInput');
 const addBtn = document.getElementById('addBtn');
@@ -212,20 +235,19 @@ document.querySelectorAll('.catBtn').forEach(btn=>{
   });
 });
 
-function makeIcon(category, visited, emoji){
-  let cls, symbol;
-  if(category === 'custom'){
-    cls = 'footPin custom';
-    symbol = emoji || '✨';
-  } else {
-    cls = 'footPin ' + (visited ? 'green' : 'orange');
-    symbol = CAT_INFO[category].emoji;
-  }
-  return L.divIcon({
-    className: '',
-    html: `<div class="${cls}"><span>${symbol}</span></div>`,
-    iconSize: [30,30],
-    iconAnchor: category==='custom' ? [15,15] : [15,30]
+function makePinHtml(category, visited, emoji){
+  const symbol = emoji || (category==='custom' ? '✨' : CAT_INFO[category].emoji);
+  const cls = category === 'custom' ? 'footPin custom' : 'footPin ' + (visited ? 'green' : 'orange');
+  return `<div class="${cls}"><span>${symbol}</span></div>`;
+}
+
+function createOverlay(lat, lng, category, visited, emoji){
+  return new kakao.maps.CustomOverlay({
+    position: new kakao.maps.LatLng(lat, lng),
+    content: makePinHtml(category, visited, emoji),
+    yAnchor: category === 'custom' ? 0.5 : 1,
+    xAnchor: 0.5,
+    map: map
   });
 }
 
@@ -242,20 +264,25 @@ addBtn.addEventListener('click', ()=>{
   hintText.textContent = '지도 위 원하는 위치를 클릭하면 핀이 등록됩니다.';
 });
 
-map.on('click', (e)=>{
+function onMapClick(mouseEvent){
   if(!awaitingClick || !pendingData) return;
-  const { lat, lng } = e.latlng;
+  const latlng = mouseEvent.latLng;
+  const lat = latlng.getLat();
+  const lng = latlng.getLng();
+  const defaultEmoji = pendingData.category === 'custom'
+    ? (pendingData.emoji || '✨')
+    : CAT_INFO[pendingData.category].emoji;
   const place = {
     id: idSeq++,
     name: pendingData.name,
     category: pendingData.category,
-    emoji: pendingData.emoji,
+    emoji: defaultEmoji,
     lat, lng,
     visited: false,
-    marker: null
+    memo: '',
+    overlay: null
   };
-  const marker = L.marker([lat,lng], { icon: makeIcon(place.category, false, place.emoji) }).addTo(map);
-  place.marker = marker;
+  place.overlay = createOverlay(lat, lng, place.category, false, place.emoji);
   places.push(place);
 
   awaitingClick = false;
@@ -266,14 +293,16 @@ map.on('click', (e)=>{
   nameInput.value = '';
   emojiInput.value = '';
 
+  saveToStorage();
   renderList();
-});
+}
 
 function toggleVisited(id, checked){
   const p = places.find(x=>x.id===id);
   if(!p || p.category === 'custom') return;
   p.visited = checked;
-  p.marker.setIcon(makeIcon(p.category, p.visited, p.emoji));
+  p.overlay.setContent(makePinHtml(p.category, p.visited, p.emoji));
+  saveToStorage();
   renderList();
 }
 
@@ -282,15 +311,37 @@ function move(id, dir){
   const newIdx = idx + dir;
   if(newIdx < 0 || newIdx >= places.length) return;
   [places[idx], places[newIdx]] = [places[newIdx], places[idx]];
+  saveToStorage();
   renderList();
 }
 
 function removePlace(id){
   const idx = places.findIndex(x=>x.id===id);
   if(idx === -1) return;
-  places[idx].marker.remove();
+  places[idx].overlay.setMap(null);
   places.splice(idx,1);
+  saveToStorage();
   renderList();
+}
+
+function editEmoji(id){
+  const p = places.find(x=>x.id===id);
+  if(!p) return;
+  const next = prompt('이 핀에 쓸 이모티콘을 입력하세요 (예: 🍜, ⭐, 🎡)', p.emoji);
+  if(next === null) return;
+  const trimmed = next.trim();
+  if(!trimmed) return;
+  p.emoji = trimmed;
+  p.overlay.setContent(makePinHtml(p.category, p.visited, p.emoji));
+  saveToStorage();
+  renderList();
+}
+
+function editMemo(id, value){
+  const p = places.find(x=>x.id===id);
+  if(!p) return;
+  p.memo = value;
+  saveToStorage();
 }
 
 function renderList(){
@@ -300,15 +351,17 @@ function renderList(){
     return;
   }
   listEl.innerHTML = places.map((p, i)=>{
-    const info = p.category === 'custom' ? { emoji: p.emoji || '✨', label:'커스텀' } : CAT_INFO[p.category];
+    const label = p.category === 'custom' ? '커스텀' : CAT_INFO[p.category].label;
     const disabled = p.category === 'custom' ? 'disabled' : '';
     return `
     <div class="placeCard ${p.visited ? 'visited':''}">
       <div class="rankBadge">${i+1}</div>
-      <div class="pinIcon">${info.emoji}</div>
+      <div class="pinIcon" onclick="editEmoji(${p.id})" title="클릭해서 이모티콘 바꾸기" style="cursor:pointer;">${p.emoji}</div>
       <div class="cardBody">
         <div class="cardName">${escapeHtml(p.name)}</div>
-        <div class="cardMeta">${info.label}${p.visited ? ' · 방문완료' : ''}</div>
+        <div class="cardMeta">${label}${p.visited ? ' · 방문완료' : ''}</div>
+        <textarea class="memoBox" placeholder="메모 남기기 (예: 아메리카노 맛있음)"
+          onchange="editMemo(${p.id}, this.value)">${escapeHtml(p.memo || '')}</textarea>
       </div>
       <div class="cardActions">
         <div class="orderBtns">
@@ -331,15 +384,30 @@ function escapeHtml(str){
   return d.innerHTML;
 }
 
-renderList();
+kakao.maps.load(function(){
+  const container = document.getElementById('map');
+  map = new kakao.maps.Map(container, {
+    center: new kakao.maps.LatLng(37.5665, 126.9780),
+    level: 7
+  });
+  map.setZoomable(true);
 
-// 내 위치로 지도 이동 시도 (실패해도 무시)
-if(navigator.geolocation){
-  navigator.geolocation.getCurrentPosition(
-    pos => map.setView([pos.coords.latitude, pos.coords.longitude], 13),
-    () => {}
-  );
-}
+  kakao.maps.event.addListener(map, 'click', onMapClick);
+
+  loadFromStorage();
+  renderList();
+
+  // 내 위치로 지도 이동 시도 (실패해도 무시)
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        map.setCenter(new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
+        map.setLevel(5);
+      },
+      () => {}
+    );
+  }
+});
 </script>
 </body>
 </html>
