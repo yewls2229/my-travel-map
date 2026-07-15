@@ -100,34 +100,47 @@
   .catListItem{
     border:1px solid var(--line);border-radius:8px;background:var(--sb-input);
   }
-  .catListItem.active{border-color:var(--gold);}
-  .catMain{
-    display:flex;align-items:center;gap:8px;padding:10px;cursor:pointer;
-    line-height:1.4;border-radius:8px 8px 0 0;min-height:20px;
+  .catListItem.active{border-color:var(--gold);background:var(--gold);}
+  .catRowLine{
+    display:flex;align-items:center;gap:8px;padding:8px 10px;
+    line-height:1.3;min-height:20px;border-radius:8px;
   }
-  .catListItem.active .catMain{background:var(--gold);color:#fff;}
-  .catMain.noMemo{border-radius:8px;}
+  .catNameArea{display:flex;align-items:center;gap:6px;cursor:pointer;flex-shrink:0;}
+  .catListItem.active .catRowLine{color:#fff;}
   .catEmoji{
     font-size:17px;flex-shrink:0;line-height:1;
     font-family:'Segoe UI Emoji','Noto Color Emoji','Apple Color Emoji',sans-serif;
   }
-  .catLabel{font-size:13px;font-weight:600;line-height:1.4;word-break:break-word;}
-  .catCtrls{display:flex;gap:2px;margin-left:auto;flex-shrink:0;}
+  .catLabel{font-size:13px;font-weight:600;line-height:1.4;white-space:nowrap;}
+  .catMemoInline{
+    flex:1;min-width:0;background:rgba(255,255,255,0.6);border:1px solid var(--line);
+    border-radius:5px;padding:5px 8px;font-size:11.5px;color:var(--ink);outline:none;
+  }
+  .catListItem.active .catMemoInline{background:rgba(255,255,255,0.85);}
+  .catMemoInline::placeholder{color:#a8a091;}
+  .catMemoInline:focus{border-color:var(--gold);}
+  .catCtrls{display:flex;gap:2px;flex-shrink:0;}
   .catCtrlBtn{background:none;border:none;cursor:pointer;font-size:11px;color:inherit;opacity:0.75;padding:2px 4px;}
   .catCtrlBtn:hover{opacity:1;}
   .catDel:hover{color:#E2723A;}
-  .catBadge{margin-left:auto;font-size:10px;background:rgba(0,0,0,0.08);padding:2px 7px;border-radius:10px;color:var(--text-soft);flex-shrink:0;}
+  .catBadge{font-size:10px;background:rgba(0,0,0,0.08);padding:2px 7px;border-radius:10px;color:var(--text-soft);flex-shrink:0;}
   .catListItem.active .catBadge{background:rgba(255,255,255,0.25);color:#fff;}
-  .catMemoBox{
-    width:100%;display:block;border:none;border-top:1px solid var(--line);
-    background:transparent;color:var(--ink);font-size:11.5px;padding:6px 10px;
-    resize:vertical;min-height:24px;font-family:inherit;border-radius:0 0 8px 8px;
+ 
+  .groupBlock{margin-bottom:4px;}
+  .groupHeader{
+    display:flex;align-items:center;gap:6px;padding:7px 6px;cursor:pointer;
+    font-weight:700;font-size:12.5px;color:var(--ink);border-radius:6px;
   }
-  .catMemoBox::placeholder{color:#a8a091;}
-  .catMemoBox:focus{outline:none;background:#fff;}
-  .addCatRow .catMain{color:var(--text-soft);border-style:dashed;}
+  .groupHeader:hover{background:var(--sb-input);}
+  .groupHeader.ungroupedHeader{cursor:default;color:var(--text-soft);font-weight:600;}
+  .groupHeader.ungroupedHeader:hover{background:none;}
+  .groupArrow{width:14px;flex-shrink:0;font-size:10px;text-align:center;}
+  .groupName{flex:1;word-break:break-word;}
+  .groupCtrls{display:flex;gap:2px;flex-shrink:0;}
+  .groupChildren{display:flex;flex-direction:column;gap:6px;padding-left:16px;margin:4px 0 4px 0;border-left:2px solid var(--line);}
+  .addCatRow .catNameArea{color:var(--text-soft);}
   .addCatRow{border-style:dashed;}
-  .addCatRow .catMain:hover{color:var(--ink);}
+  .addCatRow .catNameArea:hover{color:var(--ink);}
  
   .searchRow{display:flex;gap:6px;}
   .searchRow input{flex:1;}
@@ -228,6 +241,8 @@
   }
   .visitBtn{background:var(--green);color:#fff;}
   .visitBtn:hover{background:#0f9640;}
+  .editCatBtn{background:var(--sb-input);color:var(--ink);border:1px solid var(--line);}
+  .editCatBtn:hover{border-color:var(--gold);}
   .deleteBtn{background:#F4DED6;color:#b3401f;}
   .deleteBtn:hover{background:#eecabd;}
   .cancelBtn{background:var(--sb-input);color:var(--text-soft);margin-bottom:0;}
@@ -276,8 +291,27 @@
   <div class="modalBox">
     <div class="modalTitle" id="modalTitle"></div>
     <button class="modalBtn visitBtn" id="modalVisitBtn"></button>
+    <button class="modalBtn editCatBtn" id="modalEditCatBtn">📂 카테고리 변경</button>
     <button class="modalBtn deleteBtn" id="modalDeleteBtn">삭제하기</button>
     <button class="modalBtn cancelBtn" id="modalCancelBtn">취소</button>
+  </div>
+</div>
+ 
+<div class="modalOverlay" id="catEditModal">
+  <div class="modalBox">
+    <div class="modalTitle" id="catEditTitle"></div>
+    <div id="catEditList" style="margin-bottom:12px;max-height:220px;overflow-y:auto;"></div>
+    <button class="modalBtn visitBtn" id="catEditConfirmBtn">저장하기</button>
+    <button class="modalBtn cancelBtn" id="catEditCancelBtn">취소</button>
+  </div>
+</div>
+ 
+<div class="modalOverlay" id="moveGroupModal">
+  <div class="modalBox">
+    <div class="modalTitle" id="moveGroupTitle"></div>
+    <div id="moveGroupList" style="margin-bottom:12px;max-height:220px;overflow-y:auto;text-align:left;"></div>
+    <button class="modalBtn visitBtn" id="moveGroupConfirmBtn">이동하기</button>
+    <button class="modalBtn cancelBtn" id="moveGroupCancelBtn">취소</button>
   </div>
 </div>
  
@@ -295,8 +329,10 @@ const SUPABASE_URL = 'https://hladgocnwkdobcsxcmqk.supabase.co';
 const SUPABASE_KEY = 'sb_publishable__FWBn_--TTx2JgOtuwqyEQ_cnyqW6tw';
  
 const DEFAULT_KEYS = ['before_visit','after_visit'];
-let CAT_INFO = {};             // { key: {emoji,label,memo} }
+let CAT_INFO = {};             // { key: {emoji,label,memo,groupId} }
 let customCategoryOrder = [];  // 커스텀 카테고리 우선순위 (지도 이모지 결정용)
+let GROUPS = {};               // { groupId: {name, collapsed} } - 대카테고리(그룹)
+let groupOrder = [];           // 그룹 표시 순서
 let places = [];               // {id, name, categories:[], emoji, lat, lng, visited, memo, address, overlay}
 let idSeq = 1;
 let map;
@@ -317,6 +353,8 @@ async function pushCloudState(){
   const state = {
     categories: CAT_INFO,
     categoryOrder: customCategoryOrder,
+    groups: GROUPS,
+    groupOrder: groupOrder,
     places: places.map(p => ({
       id: p.id, name: p.name, categories: p.categories,
       emoji: p.emoji, lat: p.lat, lng: p.lng, visited: p.visited,
@@ -370,6 +408,23 @@ function loadCategoryOrder(){
 function saveCategoryOrderLocal(){ localStorage.setItem('categoryOrder', JSON.stringify(customCategoryOrder)); }
 function saveCategoryOrder(){ saveCategoryOrderLocal(); queueCloudSync(); }
  
+/* ---------- 그룹(대카테고리) 저장/불러오기 (로컬) ---------- */
+function loadGroups(){
+  const raw = localStorage.getItem('groups');
+  if(raw){ try{ GROUPS = JSON.parse(raw); } catch(e){ GROUPS = {}; } }
+}
+function saveGroupsLocal(){ localStorage.setItem('groups', JSON.stringify(GROUPS)); }
+function saveGroups(){ saveGroupsLocal(); queueCloudSync(); }
+ 
+function loadGroupOrder(){
+  const raw = localStorage.getItem('groupOrder');
+  if(raw){ try{ groupOrder = JSON.parse(raw); return; } catch(e){} }
+  groupOrder = Object.keys(GROUPS);
+  saveGroupOrder();
+}
+function saveGroupOrderLocal(){ localStorage.setItem('groupOrder', JSON.stringify(groupOrder)); }
+function saveGroupOrder(){ saveGroupOrderLocal(); queueCloudSync(); }
+ 
 /* ---------- 장소 저장/불러오기 (로컬) ---------- */
 function saveToStorageLocal(){
   const data = places.map(p => ({
@@ -417,16 +472,31 @@ function catRowHtml(key){
     : `<div class="catCtrls">
          <button class="catCtrlBtn" data-move="${key}" data-dir="-1" title="위로">▲</button>
          <button class="catCtrlBtn" data-move="${key}" data-dir="1" title="아래로">▼</button>
+         <button class="catCtrlBtn" data-move-group="${key}" title="그룹으로 이동">🔀</button>
          <button class="catCtrlBtn catDel" data-del="${key}" title="삭제">✕</button>
        </div>`;
-  const memoBox = isDefault ? '' : `<textarea class="catMemoBox" placeholder="메모 남기기" data-catmemo="${key}">${escapeHtml(info.memo || '')}</textarea>`;
+  const memoInput = isDefault ? '' : `<input type="text" class="catMemoInline" placeholder="메모 남기기" data-catmemo="${key}" value="${escapeHtml(info.memo || '')}">`;
   return `<div class="catListItem${active}" data-cat="${key}">
-    <div class="catMain${isDefault ? ' noMemo' : ''}" data-select="${key}">
-      <span class="catEmoji">${info.emoji}</span>
-      <span class="catLabel">${escapeHtml(info.label)}</span>
+    <div class="catRowLine">
+      <div class="catNameArea" data-select="${key}">
+        <span class="catEmoji">${info.emoji}</span>
+        <span class="catLabel">${escapeHtml(info.label)}</span>
+      </div>
+      ${memoInput}
       ${controls}
     </div>
-    ${memoBox}
+  </div>`;
+}
+ 
+function groupHeaderHtml(gid){
+  const g = GROUPS[gid];
+  return `<div class="groupHeader" data-toggle-group="${gid}">
+    <span class="groupArrow">${g.collapsed ? '▶' : '🔽'}</span>
+    <span class="groupName">${escapeHtml(g.name)}</span>
+    <div class="groupCtrls">
+      <button class="catCtrlBtn" data-rename-group="${gid}" title="이름 변경">✏️</button>
+      <button class="catCtrlBtn catDel" data-del-group="${gid}" title="그룹 삭제">✕</button>
+    </div>
   </div>`;
 }
  
@@ -434,8 +504,30 @@ function renderCatRow(){
   let html = '';
   html += catRowHtml('before_visit');
   html += catRowHtml('after_visit');
-  customCategoryOrder.forEach(k=>{ if(CAT_INFO[k]) html += catRowHtml(k); });
-  html += `<div class="catListItem addCatRow" id="addCatBtn"><div class="catMain"><span class="catEmoji">➕</span><span class="catLabel">카테고리 추가</span></div></div>`;
+ 
+  groupOrder.forEach(gid=>{
+    if(!GROUPS[gid]) return;
+    const childKeys = customCategoryOrder.filter(k => CAT_INFO[k] && CAT_INFO[k].groupId === gid);
+    html += `<div class="groupBlock">`;
+    html += groupHeaderHtml(gid);
+    if(!GROUPS[gid].collapsed){
+      html += `<div class="groupChildren">`;
+      childKeys.forEach(k=>{ html += catRowHtml(k); });
+      if(childKeys.length === 0) html += `<div class="emptyState" style="padding:6px 0;font-size:11.5px;">아직 카테고리가 없어요</div>`;
+      html += `</div>`;
+    }
+    html += `</div>`;
+  });
+ 
+  const ungrouped = customCategoryOrder.filter(k => CAT_INFO[k] && !CAT_INFO[k].groupId);
+  if(ungrouped.length > 0){
+    html += `<div class="groupBlock"><div class="groupHeader ungroupedHeader"><span class="groupArrow"> </span><span class="groupName">미분류</span></div><div class="groupChildren">`;
+    ungrouped.forEach(k=>{ html += catRowHtml(k); });
+    html += `</div></div>`;
+  }
+ 
+  html += `<div class="catListItem addCatRow" id="addCatBtn"><div class="catRowLine"><div class="catNameArea"><span class="catEmoji">➕</span><span class="catLabel">카테고리 추가</span></div></div></div>`;
+  html += `<div class="catListItem addCatRow" id="addGroupBtn"><div class="catRowLine"><div class="catNameArea"><span class="catEmoji">📁</span><span class="catLabel">그룹 추가</span></div></div></div>`;
   document.getElementById('catRow').innerHTML = html;
 }
  
@@ -445,12 +537,90 @@ function addNewCategory(){
   const emoji = prompt('이 카테고리에 쓸 기본 이모티콘을 입력하세요', '📍');
   if(!emoji || !emoji.trim()) return;
   const key = 'cat_' + Date.now();
-  CAT_INFO[key] = { emoji: emoji.trim(), label: label.trim(), memo: '' };
+  CAT_INFO[key] = { emoji: emoji.trim(), label: label.trim(), memo: '', groupId: null };
   customCategoryOrder.push(key);
   saveCategories();
   saveCategoryOrder();
   selectCategory(key);
 }
+ 
+function addNewGroup(){
+  const name = prompt('새 그룹 이름을 입력하세요 (예: 한국, 해외, 중국)');
+  if(!name || !name.trim()) return;
+  const gid = 'grp_' + Date.now();
+  GROUPS[gid] = { name: name.trim(), collapsed: false };
+  groupOrder.push(gid);
+  saveGroups();
+  saveGroupOrder();
+  renderCatRow();
+}
+ 
+function toggleGroupCollapse(gid){
+  if(!GROUPS[gid]) return;
+  GROUPS[gid].collapsed = !GROUPS[gid].collapsed;
+  saveGroups();
+  renderCatRow();
+}
+ 
+function renameGroup(gid){
+  if(!GROUPS[gid]) return;
+  const name = prompt('그룹 이름을 수정하세요', GROUPS[gid].name);
+  if(!name || !name.trim()) return;
+  GROUPS[gid].name = name.trim();
+  saveGroups();
+  renderCatRow();
+}
+ 
+function deleteGroup(gid){
+  if(!GROUPS[gid]) return;
+  if(!confirm(`"${GROUPS[gid].name}" 그룹을 삭제할까요?\n그룹 안의 카테고리는 삭제되지 않고 '미분류'로 이동해요.`)) return;
+  Object.keys(CAT_INFO).forEach(k=>{
+    if(CAT_INFO[k].groupId === gid) CAT_INFO[k].groupId = null;
+  });
+  delete GROUPS[gid];
+  groupOrder = groupOrder.filter(g => g !== gid);
+  saveCategories();
+  saveGroups();
+  saveGroupOrder();
+  renderCatRow();
+}
+ 
+/* ---------- 카테고리를 다른 그룹으로 이동 ---------- */
+let moveTargetKey = null;
+function openMoveGroupModal(key){
+  const info = CAT_INFO[key];
+  if(!info) return;
+  moveTargetKey = key;
+  document.getElementById('moveGroupTitle').textContent = `"${info.label}" 을(를) 옮길 그룹`;
+  let html = `<label class="catPickRow"><input type="radio" name="moveGroup" value="" ${!info.groupId ? 'checked' : ''}><span>📂 그룹 없음</span></label>`;
+  groupOrder.forEach(gid=>{
+    if(!GROUPS[gid]) return;
+    const checked = info.groupId === gid ? 'checked' : '';
+    html += `<label class="catPickRow"><input type="radio" name="moveGroup" value="${gid}" ${checked}><span>${escapeHtml(GROUPS[gid].name)}</span></label>`;
+  });
+  if(groupOrder.length === 0){
+    html += `<div class="emptyState" style="padding:6px 0;">아직 만든 그룹이 없어요. 먼저 그룹을 추가해주세요.</div>`;
+  }
+  document.getElementById('moveGroupList').innerHTML = html;
+  document.getElementById('moveGroupModal').style.display = 'flex';
+}
+function closeMoveGroupModal(){
+  document.getElementById('moveGroupModal').style.display = 'none';
+  moveTargetKey = null;
+}
+document.getElementById('moveGroupConfirmBtn').addEventListener('click', ()=>{
+  const selected = document.querySelector('input[name="moveGroup"]:checked');
+  if(moveTargetKey && CAT_INFO[moveTargetKey]){
+    CAT_INFO[moveTargetKey].groupId = (selected && selected.value) ? selected.value : null;
+    saveCategories();
+    renderCatRow();
+  }
+  closeMoveGroupModal();
+});
+document.getElementById('moveGroupCancelBtn').addEventListener('click', closeMoveGroupModal);
+document.getElementById('moveGroupModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'moveGroupModal') closeMoveGroupModal();
+});
  
 function deleteCategory(key){
   if(DEFAULT_KEYS.includes(key)) return;
@@ -470,6 +640,7 @@ function deleteCategory(key){
   if(selectedCat === key) selectedCat = null;
   renderCatRow();
   renderPlaceList();
+  applyMapFilter();
 }
  
 function moveCategory(key, dir){
@@ -479,7 +650,8 @@ function moveCategory(key, dir){
   [customCategoryOrder[idx], customCategoryOrder[newIdx]] = [customCategoryOrder[newIdx], customCategoryOrder[idx]];
   saveCategoryOrder();
   renderCatRow();
-  refreshAllPinEmojis();
+  saveToStorage();
+  applyMapFilter();
 }
  
 function refreshAllPinEmojis(){
@@ -496,10 +668,11 @@ function refreshAllPinEmojis(){
 }
  
 function selectCategory(key){
-  selectedCat = key;
+  selectedCat = (selectedCat === key) ? null : key;
   localFilterInput.value = '';
   renderCatRow();
   renderPlaceList();
+  applyMapFilter();
 }
  
 function editCategoryMemo(key, value){
@@ -510,6 +683,15 @@ function editCategoryMemo(key, value){
  
 document.getElementById('catRow').addEventListener('click', (e)=>{
   if(e.target.closest('#addCatBtn')){ addNewCategory(); return; }
+  if(e.target.closest('#addGroupBtn')){ addNewGroup(); return; }
+  const renameGroupEl = e.target.closest('[data-rename-group]');
+  if(renameGroupEl){ renameGroup(renameGroupEl.dataset.renameGroup); return; }
+  const delGroupEl = e.target.closest('[data-del-group]');
+  if(delGroupEl){ deleteGroup(delGroupEl.dataset.delGroup); return; }
+  const toggleGroupEl = e.target.closest('[data-toggle-group]');
+  if(toggleGroupEl){ toggleGroupCollapse(toggleGroupEl.dataset.toggleGroup); return; }
+  const moveGroupEl = e.target.closest('[data-move-group]');
+  if(moveGroupEl){ openMoveGroupModal(moveGroupEl.dataset.moveGroup); return; }
   const delBtn = e.target.closest('[data-del]');
   if(delBtn){ deleteCategory(delBtn.dataset.del); return; }
   const moveBtn = e.target.closest('[data-move]');
@@ -603,6 +785,7 @@ function ensureGoogleMarkers(){
       p.gMarker = createGoogleMarker(p.id, p.lat, p.lng, p.visited, p.emoji);
     }
   });
+  applyMapFilter();
 }
  
 function updateMarkerVisuals(p){
@@ -611,6 +794,37 @@ function updateMarkerVisuals(p){
     p.gMarker.setIcon(makeGoogleIcon(p.visited));
     p.gMarker.setLabel({ text: p.emoji || '📍', fontSize: '13px' });
   }
+}
+ 
+// 선택된 카테고리에 따라 지도에 보이는 핀과 이모지를 다르게 표시
+function applyMapFilter(){
+  places.forEach(p=>{
+    let visible, emojiToShow;
+    if(selectedCat){
+      visible = p.categories.includes(selectedCat);
+      emojiToShow = (CAT_INFO[selectedCat] && CAT_INFO[selectedCat].emoji) || p.emoji;
+    } else {
+      visible = true;
+      emojiToShow = getDisplayEmoji(p.categories);
+    }
+ 
+    if(visible){
+      p.overlay.setContent(makePinElement(p.id, p.visited, emojiToShow));
+      p.overlay.setMap(map);
+    } else {
+      p.overlay.setMap(null);
+    }
+ 
+    if(p.gMarker){
+      if(visible){
+        p.gMarker.setIcon(makeGoogleIcon(p.visited));
+        p.gMarker.setLabel({ text: emojiToShow || '📍', fontSize: '13px' });
+        p.gMarker.setMap(googleMap);
+      } else {
+        p.gMarker.setMap(null);
+      }
+    }
+  });
 }
  
 /* ---------- 방문/삭제 선택 모달 ---------- */
@@ -640,9 +854,9 @@ document.getElementById('modalVisitBtn').addEventListener('click', ()=>{
       p.visited = true;
     }
     p.emoji = getDisplayEmoji(p.categories);
-    updateMarkerVisuals(p);
     saveToStorage();
     renderPlaceList();
+    applyMapFilter();
   }
   closePinAction();
 });
@@ -653,6 +867,55 @@ document.getElementById('modalDeleteBtn').addEventListener('click', ()=>{
 document.getElementById('modalCancelBtn').addEventListener('click', closePinAction);
 document.getElementById('pinActionModal').addEventListener('click', (e)=>{
   if(e.target.id === 'pinActionModal') closePinAction();
+});
+ 
+/* ---------- 카테고리 추가/변경 모달 ---------- */
+let catEditTargetId = null;
+document.getElementById('modalEditCatBtn').addEventListener('click', ()=>{
+  const id = pinActionTargetId;
+  closePinAction();
+  openCatEditModal(id);
+});
+ 
+function openCatEditModal(id){
+  const p = places.find(x=>x.id===id);
+  if(!p) return;
+  catEditTargetId = id;
+  document.getElementById('catEditTitle').textContent = p.name;
+  const listEl3 = document.getElementById('catEditList');
+  if(customCategoryOrder.length === 0){
+    listEl3.innerHTML = '<div class="emptyState" style="padding:6px 0;">아직 만든 카테고리가 없어요.<br>먼저 카테고리를 추가해주세요.</div>';
+  } else {
+    listEl3.innerHTML = customCategoryOrder.filter(k=>CAT_INFO[k]).map(k=>{
+      const checked = p.categories.includes(k) ? 'checked' : '';
+      return `<label class="catPickRow">
+        <input type="checkbox" value="${k}" ${checked}>
+        <span>${CAT_INFO[k].emoji} ${escapeHtml(CAT_INFO[k].label)}</span>
+      </label>`;
+    }).join('');
+  }
+  document.getElementById('catEditModal').style.display = 'flex';
+}
+function closeCatEditModal(){
+  document.getElementById('catEditModal').style.display = 'none';
+  catEditTargetId = null;
+}
+document.getElementById('catEditConfirmBtn').addEventListener('click', ()=>{
+  const p = places.find(x=>x.id===catEditTargetId);
+  if(p){
+    const checked = Array.from(document.querySelectorAll('#catEditList input[type=checkbox]:checked')).map(el=>el.value);
+    const statusCat = p.visited ? 'after_visit' : 'before_visit';
+    p.categories = [statusCat, ...checked];
+    p.emoji = getDisplayEmoji(p.categories);
+    saveToStorage();
+    renderPlaceList();
+    applyMapFilter();
+  }
+  closeCatEditModal();
+});
+document.getElementById('catEditCancelBtn').addEventListener('click', closeCatEditModal);
+document.getElementById('catEditModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'catEditModal') closeCatEditModal();
 });
  
 function navigateToPlace(id){
@@ -681,6 +944,7 @@ function finalizePlace(name, categories, lat, lng, address){
   places.push(place);
   saveToStorage();
   renderPlaceList();
+  applyMapFilter();
   return place;
 }
  
@@ -915,8 +1179,12 @@ async function initData(){
     if(!CAT_INFO.before_visit) CAT_INFO.before_visit = { emoji:'📍', label:'방문 전', memo:'' };
     if(!CAT_INFO.after_visit) CAT_INFO.after_visit = { emoji:'✅', label:'방문 후', memo:'' };
     customCategoryOrder = cloud.categoryOrder || Object.keys(CAT_INFO).filter(k => !DEFAULT_KEYS.includes(k));
+    GROUPS = cloud.groups || {};
+    groupOrder = cloud.groupOrder || Object.keys(GROUPS);
     saveCategoriesLocal();
     saveCategoryOrderLocal();
+    saveGroupsLocal();
+    saveGroupOrderLocal();
  
     places = [];
     (cloud.places || []).forEach(p=>{
@@ -934,6 +1202,8 @@ async function initData(){
     // 클라우드에 데이터가 없거나 오프라인 → 이 기기에 저장된 내용으로 시작하고, 온라인이면 클라우드로 올려줌
     loadCategories();
     loadCategoryOrder();
+    loadGroups();
+    loadGroupOrder();
     loadFromStorage();
     queueCloudSync();
   }
@@ -941,6 +1211,7 @@ async function initData(){
   hintEl.textContent = '① 카테고리 만들기 → ② 장소 검색 → ③ 담을 카테고리 체크';
   renderCatRow();
   renderPlaceList();
+  applyMapFilter();
 }
  
 /* ---------- 국내/해외 지도 전환 ---------- */
