@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>여행 버킷리스트</title>
+<title>Travelog</title>
 <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=bbcf39840e4999a45a371a2c7a7bf4d5&autoload=false&libraries=services"></script>
 <style>
   :root{
@@ -33,7 +33,7 @@
     overflow:hidden;
   }
   #sidebar.collapsed{ width:0; min-width:0; border-right:none; }
-  #sidebarInner{ width:340px; height:100%; display:flex; flex-direction:column; flex-shrink:0; }
+  #sidebarInner{ width:340px; height:100%; display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; }
  
   #toggleSidebarBtn{
     position:absolute; top:18px; left:16px; z-index:1000;
@@ -47,6 +47,7 @@
   #brand{
     padding:22px 20px 14px 58px;
     border-bottom:1px solid var(--line);
+    flex-shrink:0;
   }
   #brand h1{
     font-family:Georgia,'Times New Roman',serif;
@@ -55,9 +56,10 @@
   #brand p{margin:0;font-size:12.5px;color:var(--text-soft);line-height:1.5;}
  
   #addForm{
-    padding:16px 20px;
+    padding:14px 20px;
     border-bottom:1px solid var(--line);
     display:flex;flex-direction:column;gap:8px;
+    flex-shrink:0;
   }
   #addForm .hint{
     font-size:12px;color:var(--text-soft);background:var(--sb-input);
@@ -68,24 +70,33 @@
     border:1px solid var(--line);
     color:var(--ink);
     padding:9px 10px;border-radius:6px;font-size:13.5px;outline:none;
+    width:100%;
   }
   #addForm input[type=text]::placeholder{color:#a8a091;}
   #addForm input[type=text]:focus{border-color:var(--gold);}
  
-  .catRow{display:flex;gap:6px;flex-wrap:wrap;}
-  .catBtn{
-    flex:1;min-width:60px;
-    background:var(--sb-input);
-    border:1px solid var(--line);
-    color:var(--ink);
-    padding:7px 6px;border-radius:6px;font-size:12.5px;cursor:pointer;
-    display:flex;flex-direction:column;align-items:center;gap:2px;
-    transition:all .15s ease;
+  /* ---------- Category list ---------- */
+  .catList{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow-y:auto;padding-right:2px;}
+  .catListItem{
+    border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--sb-input);
   }
-  .catBtn.active{background:var(--gold);border-color:var(--gold);color:#fff;font-weight:600;}
-  .catBtn:hover{border-color:var(--gold);}
-  .addCatBtn{border-style:dashed;color:var(--text-soft);}
-  .addCatBtn:hover{color:var(--ink);}
+  .catListItem.active{border-color:var(--gold);}
+  .catMain{
+    display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;
+  }
+  .catListItem.active .catMain{background:var(--gold);color:#fff;}
+  .catEmoji{font-size:16px;flex-shrink:0;}
+  .catLabel{font-size:13px;font-weight:600;flex:1;}
+  .catMemoBox{
+    width:100%;display:block;border:none;border-top:1px solid var(--line);
+    background:transparent;color:var(--ink);font-size:11.5px;padding:6px 10px;
+    resize:vertical;min-height:24px;font-family:inherit;
+  }
+  .catMemoBox::placeholder{color:#a8a091;}
+  .catMemoBox:focus{outline:none;background:#fff;}
+  .addCatRow .catMain{color:var(--text-soft);border-style:dashed;}
+  .addCatRow{border-style:dashed;}
+  .addCatRow .catMain:hover{color:var(--ink);}
  
   .searchRow{display:flex;gap:6px;}
   .searchRow input{flex:1;}
@@ -106,10 +117,17 @@
  
   /* ---------- List ---------- */
   #listHeader{
-    padding:12px 20px 6px 20px;font-size:12px;
-    color:var(--text-soft);
+    padding:12px 20px 8px 20px;font-size:12px;
+    color:var(--text-soft);flex-shrink:0;
+    display:flex;flex-direction:column;gap:8px;
   }
   #listHeader b{color:var(--ink);}
+  #localFilterInput{
+    width:100%;background:var(--sb-input);border:1px solid var(--line);
+    color:var(--ink);padding:7px 9px;border-radius:6px;font-size:12.5px;outline:none;
+  }
+  #localFilterInput::placeholder{color:#a8a091;}
+  #localFilterInput:focus{border-color:var(--gold);}
   #list{flex:1;overflow-y:auto;padding:4px 12px 20px 12px;}
   .placeCard{
     background:#FCFBF8;
@@ -120,6 +138,8 @@
   .placeCard.visited{opacity:0.65;}
   .pinIcon{font-size:18px;flex-shrink:0;margin-top:1px;cursor:pointer;}
   .cardBody{flex:1;min-width:0;}
+  .cardNameArea{cursor:pointer;}
+  .cardNameArea:hover .cardName{color:var(--gold);}
   .cardName{font-size:14px;font-weight:600;color:var(--ink);word-break:break-word;}
   .cardMeta{font-size:11px;color:var(--text-soft);margin-top:2px;}
   .memoBox{
@@ -147,6 +167,27 @@
   .footPin span{transform:rotate(45deg);font-size:14px;}
   .footPin.orange{background:var(--pin-yellow);}
   .footPin.green{background:var(--green);}
+ 
+  /* ---------- Pin action modal ---------- */
+  .modalOverlay{
+    display:none;position:fixed;inset:0;background:rgba(31,61,58,0.45);
+    z-index:2000;align-items:center;justify-content:center;
+  }
+  .modalBox{
+    background:#fff;border-radius:12px;padding:18px;width:260px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.25);
+  }
+  .modalTitle{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:12px;text-align:center;word-break:break-word;}
+  .modalBtn{
+    width:100%;padding:10px;border-radius:8px;border:none;font-size:13.5px;
+    margin-bottom:8px;cursor:pointer;font-weight:600;
+  }
+  .visitBtn{background:var(--green);color:#fff;}
+  .visitBtn:hover{background:#0f9640;}
+  .deleteBtn{background:#F4DED6;color:#b3401f;}
+  .deleteBtn:hover{background:#eecabd;}
+  .cancelBtn{background:var(--sb-input);color:var(--text-soft);margin-bottom:0;}
+  .cancelBtn:hover{background:#e9e4d8;}
 </style>
 </head>
 <body>
@@ -154,13 +195,13 @@
   <div id="sidebar">
     <div id="sidebarInner">
     <div id="brand">
-      <h1>여행 버킷리스트</h1>
-      <p>카테고리를 만들고, 검색해서 장소를 담아보세요. 지도의 핀을 누르면 방문 체크가 돼요.</p>
+      <h1>Travelog</h1>
+      <p>카테고리를 만들고, 검색해서 장소를 담아보세요. 지도의 핀을 누르면 방문/삭제를 고를 수 있어요.</p>
     </div>
  
     <div id="addForm">
       <div class="hint" id="hintText">① 카테고리를 만들거나 선택 → ② 검색해서 장소 추가</div>
-      <div class="catRow" id="catRow"></div>
+      <div class="catList" id="catRow"></div>
  
       <div class="searchRow">
         <input type="text" id="searchInput" placeholder="🔎 장소 검색 (예: 서울역)" />
@@ -169,7 +210,10 @@
       <div id="searchResults"></div>
     </div>
  
-    <div id="listHeader">선택한 카테고리: <b id="activeCatLabel">없음</b> · <span id="countText">0</span>개</div>
+    <div id="listHeader">
+      <div>선택한 카테고리: <b id="activeCatLabel">없음</b> · <span id="countText">0</span>개</div>
+      <input type="text" id="localFilterInput" placeholder="🔍 이 카테고리에서 검색" />
+    </div>
     <div id="list"></div>
     </div>
   </div>
@@ -177,12 +221,22 @@
   <div id="map"></div>
 </div>
  
+<div class="modalOverlay" id="pinActionModal">
+  <div class="modalBox">
+    <div class="modalTitle" id="modalTitle"></div>
+    <button class="modalBtn visitBtn" id="modalVisitBtn"></button>
+    <button class="modalBtn deleteBtn" id="modalDeleteBtn">삭제하기</button>
+    <button class="modalBtn cancelBtn" id="modalCancelBtn">취소</button>
+  </div>
+</div>
+ 
 <script>
-let CAT_INFO = {};      // { key: {emoji,label} } - 전부 사용자가 추가한 카테고리
+let CAT_INFO = {};      // { key: {emoji,label,memo} } - 전부 사용자가 추가한 카테고리
 let places = [];        // {id, name, category, emoji, lat, lng, visited, memo, overlay}
 let idSeq = 1;
 let map;                // kakao.maps.Map 인스턴스 (SDK 로드 후 생성됨)
 let selectedCat = null;  // 현재 선택된(활성) 카테고리
+let pinActionTargetId = null;
  
 function loadCategories(){
   const raw = localStorage.getItem('categories');
@@ -217,17 +271,24 @@ function loadFromStorage(){
 const listEl = document.getElementById('list');
 const countText = document.getElementById('countText');
 const activeCatLabel = document.getElementById('activeCatLabel');
+const localFilterInput = document.getElementById('localFilterInput');
  
-function catBtnHtml(key){
+function catRowHtml(key){
   const info = CAT_INFO[key];
   const active = key === selectedCat ? ' active' : '';
-  return `<div class="catBtn${active}" data-cat="${key}"><span>${info.emoji}</span><span>${info.label}</span></div>`;
+  return `<div class="catListItem${active}" data-cat="${key}">
+    <div class="catMain" data-select="${key}">
+      <span class="catEmoji">${info.emoji}</span>
+      <span class="catLabel">${escapeHtml(info.label)}</span>
+    </div>
+    <textarea class="catMemoBox" placeholder="메모 남기기" data-catmemo="${key}">${escapeHtml(info.memo || '')}</textarea>
+  </div>`;
 }
  
 function renderCatRow(){
   let html = '';
-  Object.keys(CAT_INFO).forEach(k => { html += catBtnHtml(k); });
-  html += `<div class="catBtn addCatBtn" id="addCatBtn"><span>➕</span><span>카테고리 추가</span></div>`;
+  Object.keys(CAT_INFO).forEach(k => { html += catRowHtml(k); });
+  html += `<div class="catListItem addCatRow" id="addCatBtn"><div class="catMain"><span class="catEmoji">➕</span><span class="catLabel">카테고리 추가</span></div></div>`;
   document.getElementById('catRow').innerHTML = html;
 }
  
@@ -237,20 +298,32 @@ function addNewCategory(){
   const emoji = prompt('이 카테고리에 쓸 기본 이모티콘을 입력하세요', '📍');
   if(!emoji || !emoji.trim()) return;
   const key = 'cat_' + Date.now();
-  CAT_INFO[key] = { emoji: emoji.trim(), label: label.trim() };
+  CAT_INFO[key] = { emoji: emoji.trim(), label: label.trim(), memo: '' };
   saveCategories();
+  selectCategory(key);
+}
+ 
+function selectCategory(key){
   selectedCat = key;
+  localFilterInput.value = '';
   renderCatRow();
   renderPlaceList();
 }
  
+function editCategoryMemo(key, value){
+  if(!CAT_INFO[key]) return;
+  CAT_INFO[key].memo = value;
+  saveCategories();
+}
+ 
 document.getElementById('catRow').addEventListener('click', (e)=>{
   if(e.target.closest('#addCatBtn')){ addNewCategory(); return; }
-  const btn = e.target.closest('.catBtn');
-  if(!btn) return;
-  selectedCat = btn.dataset.cat;
-  renderCatRow();
-  renderPlaceList();
+  const main = e.target.closest('[data-select]');
+  if(main){ selectCategory(main.dataset.select); }
+});
+document.getElementById('catRow').addEventListener('change', (e)=>{
+  const box = e.target.closest('[data-catmemo]');
+  if(box){ editCategoryMemo(box.dataset.catmemo, box.value); }
 });
  
 loadCategories();
@@ -260,6 +333,7 @@ document.getElementById('searchBtn').addEventListener('click', doSearch);
 document.getElementById('searchInput').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter'){ e.preventDefault(); doSearch(); }
 });
+localFilterInput.addEventListener('input', renderPlaceList);
  
 const toggleBtn = document.getElementById('toggleSidebarBtn');
 const sidebarEl = document.getElementById('sidebar');
@@ -274,7 +348,7 @@ function makePinElement(id, category, visited, emoji){
   const div = document.createElement('div');
   div.className = 'footPin ' + (visited ? 'green' : 'orange');
   div.innerHTML = `<span>${symbol}</span>`;
-  div.addEventListener('click', ()=> confirmToggleVisited(id));
+  div.addEventListener('click', ()=> openPinAction(id));
   div.addEventListener('mousedown', (e)=> e.stopPropagation());
   div.addEventListener('touchstart', (e)=> e.stopPropagation());
   return div;
@@ -290,17 +364,43 @@ function createOverlay(id, lat, lng, category, visited, emoji){
   });
 }
  
-function confirmToggleVisited(id){
+// ---------- 방문/삭제 선택 모달 ----------
+function openPinAction(id){
   const p = places.find(x=>x.id===id);
   if(!p) return;
-  const msg = p.visited
-    ? '이 장소를 다시 "미방문"으로 되돌릴까요?'
-    : `"${p.name}"에 다녀오셨나요? 방문완료로 표시할까요?`;
-  if(!window.confirm(msg)) return;
-  p.visited = !p.visited;
-  p.overlay.setContent(makePinElement(p.id, p.category, p.visited, p.emoji));
-  saveToStorage();
-  renderPlaceList();
+  pinActionTargetId = id;
+  document.getElementById('modalTitle').textContent = p.name;
+  document.getElementById('modalVisitBtn').textContent = p.visited ? '미방문으로 되돌리기' : '✓ 방문완료로 표시';
+  document.getElementById('pinActionModal').style.display = 'flex';
+}
+function closePinAction(){
+  document.getElementById('pinActionModal').style.display = 'none';
+  pinActionTargetId = null;
+}
+document.getElementById('modalVisitBtn').addEventListener('click', ()=>{
+  const p = places.find(x=>x.id===pinActionTargetId);
+  if(p){
+    p.visited = !p.visited;
+    p.overlay.setContent(makePinElement(p.id, p.category, p.visited, p.emoji));
+    saveToStorage();
+    renderPlaceList();
+  }
+  closePinAction();
+});
+document.getElementById('modalDeleteBtn').addEventListener('click', ()=>{
+  if(pinActionTargetId != null) removePlace(pinActionTargetId);
+  closePinAction();
+});
+document.getElementById('modalCancelBtn').addEventListener('click', closePinAction);
+document.getElementById('pinActionModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'pinActionModal') closePinAction();
+});
+ 
+function navigateToPlace(id){
+  const p = places.find(x=>x.id===id);
+  if(!p || !map) return;
+  map.setCenter(new kakao.maps.LatLng(p.lat, p.lng));
+  map.setLevel(4);
 }
  
 function finalizePlace(name, category, lat, lng){
@@ -379,19 +479,6 @@ function removePlace(id){
   renderPlaceList();
 }
  
-function editEmoji(id){
-  const p = places.find(x=>x.id===id);
-  if(!p) return;
-  const next = prompt('이 핀에 쓸 이모티콘을 입력하세요 (예: 🍜, ⭐, 🎡)', p.emoji);
-  if(next === null) return;
-  const trimmed = next.trim();
-  if(!trimmed) return;
-  p.emoji = trimmed;
-  p.overlay.setContent(makePinElement(p.id, p.category, p.visited, p.emoji));
-  saveToStorage();
-  renderPlaceList();
-}
- 
 function editMemo(id, value){
   const p = places.find(x=>x.id===id);
   if(!p) return;
@@ -408,19 +495,26 @@ function renderPlaceList(){
     listEl.innerHTML = '<div class="emptyState">먼저 카테고리를 추가하거나 선택해주세요.</div>';
     return;
   }
-  const filtered = places.filter(p => p.category === selectedCat);
+  const query = (localFilterInput.value || '').trim().toLowerCase();
+  let filtered = places.filter(p => p.category === selectedCat);
+  if(query) filtered = filtered.filter(p => p.name.toLowerCase().includes(query));
+ 
   countText.textContent = filtered.length;
   if(filtered.length === 0){
-    listEl.innerHTML = '<div class="emptyState">이 카테고리에 담긴 장소가 없어요.<br>위에서 검색해서 추가해보세요 🔎</div>';
+    listEl.innerHTML = query
+      ? '<div class="emptyState">검색과 일치하는 장소가 없어요.</div>'
+      : '<div class="emptyState">이 카테고리에 담긴 장소가 없어요.<br>위에서 검색해서 추가해보세요 🔎</div>';
     return;
   }
   listEl.innerHTML = filtered.map(p=>`
     <div class="placeCard ${p.visited ? 'visited':''}">
-      <div class="pinIcon" onclick="editEmoji(${p.id})" title="클릭해서 이모티콘 바꾸기">${p.emoji}</div>
+      <div class="pinIcon" onclick="openPinAction(${p.id})" title="방문/삭제">${p.emoji}</div>
       <div class="cardBody">
-        <div class="cardName">${escapeHtml(p.name)}</div>
-        <div class="cardMeta">${p.visited ? '✅ 방문완료' : '지도에서 핀을 눌러 방문 체크'}</div>
-        <textarea class="memoBox" placeholder="메모 남기기 (예: 아메리카노 맛있음)"
+        <div class="cardNameArea" onclick="navigateToPlace(${p.id})" title="지도에서 보기">
+          <div class="cardName">${escapeHtml(p.name)}</div>
+          <div class="cardMeta">${p.visited ? '✅ 방문완료' : '지도에서 핀을 눌러 방문 체크'}</div>
+        </div>
+        <textarea class="memoBox" placeholder="메모 남기기"
           onchange="editMemo(${p.id}, this.value)">${escapeHtml(p.memo || '')}</textarea>
       </div>
       <button class="delBtn" onclick="removePlace(${p.id})" title="삭제">✕</button>
