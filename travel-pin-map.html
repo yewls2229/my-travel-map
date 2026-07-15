@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Travelog</title>
+<title>TraveLog</title>
 <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=bbcf39840e4999a45a371a2c7a7bf4d5&autoload=false&libraries=services"></script>
 <style>
   :root{
@@ -33,7 +33,7 @@
     overflow:hidden;
   }
   #sidebar.collapsed{ width:0; min-width:0; border-right:none; }
-  #sidebarInner{ width:340px; height:100%; display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; }
+  #sidebarInner{ width:340px; height:100%; display:flex; flex-direction:column; flex-shrink:0; }
  
   #toggleSidebarBtn{
     position:absolute; top:18px; left:16px; z-index:1000;
@@ -76,21 +76,25 @@
   #addForm input[type=text]:focus{border-color:var(--gold);}
  
   /* ---------- Category list ---------- */
-  .catList{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow-y:auto;padding-right:2px;}
+  .catList{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;padding-right:2px;}
   .catListItem{
-    border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--sb-input);
+    border:1px solid var(--line);border-radius:8px;background:var(--sb-input);
   }
   .catListItem.active{border-color:var(--gold);}
   .catMain{
-    display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;
+    display:flex;align-items:center;gap:8px;padding:10px;cursor:pointer;
+    line-height:1.4;border-radius:8px 8px 0 0;min-height:20px;
   }
   .catListItem.active .catMain{background:var(--gold);color:#fff;}
-  .catEmoji{font-size:16px;flex-shrink:0;}
-  .catLabel{font-size:13px;font-weight:600;flex:1;}
+  .catEmoji{
+    font-size:17px;flex-shrink:0;line-height:1;
+    font-family:'Segoe UI Emoji','Noto Color Emoji','Apple Color Emoji',sans-serif;
+  }
+  .catLabel{font-size:13px;font-weight:600;flex:1;line-height:1.4;word-break:break-word;}
   .catMemoBox{
     width:100%;display:block;border:none;border-top:1px solid var(--line);
     background:transparent;color:var(--ink);font-size:11.5px;padding:6px 10px;
-    resize:vertical;min-height:24px;font-family:inherit;
+    resize:vertical;min-height:24px;font-family:inherit;border-radius:0 0 8px 8px;
   }
   .catMemoBox::placeholder{color:#a8a091;}
   .catMemoBox:focus{outline:none;background:#fff;}
@@ -136,7 +140,7 @@
     display:flex;align-items:flex-start;gap:10px;
   }
   .placeCard.visited{opacity:0.65;}
-  .pinIcon{font-size:18px;flex-shrink:0;margin-top:1px;cursor:pointer;}
+  .pinIcon{font-size:18px;flex-shrink:0;margin-top:1px;cursor:pointer;font-family:'Segoe UI Emoji','Noto Color Emoji','Apple Color Emoji',sans-serif;}
   .cardBody{flex:1;min-width:0;}
   .cardNameArea{cursor:pointer;}
   .cardNameArea:hover .cardName{color:var(--gold);}
@@ -164,7 +168,7 @@
     border:2px solid rgba(255,255,255,0.9);
     cursor:pointer;
   }
-  .footPin span{transform:rotate(45deg);font-size:14px;}
+  .footPin span{transform:rotate(45deg);font-size:14px;font-family:'Segoe UI Emoji','Noto Color Emoji','Apple Color Emoji',sans-serif;}
   .footPin.orange{background:var(--pin-yellow);}
   .footPin.green{background:var(--green);}
  
@@ -195,7 +199,7 @@
   <div id="sidebar">
     <div id="sidebarInner">
     <div id="brand">
-      <h1>Travelog</h1>
+      <h1>TraveLog</h1>
       <p>카테고리를 만들고, 검색해서 장소를 담아보세요. 지도의 핀을 누르면 방문/삭제를 고를 수 있어요.</p>
     </div>
  
@@ -240,8 +244,15 @@ let pinActionTargetId = null;
  
 function loadCategories(){
   const raw = localStorage.getItem('categories');
-  if(!raw) return;
-  try{ CAT_INFO = JSON.parse(raw); } catch(e){}
+  if(raw){
+    try{ CAT_INFO = JSON.parse(raw); return; } catch(e){}
+  }
+  // 최초 실행 시 기본 카테고리 두 개를 만들어줌
+  CAT_INFO = {
+    before_visit: { emoji:'📍', label:'방문 전', memo:'' },
+    after_visit:  { emoji:'✅', label:'방문 후', memo:'' }
+  };
+  saveCategories();
 }
 function saveCategories(){
   localStorage.setItem('categories', JSON.stringify(CAT_INFO));
@@ -251,7 +262,7 @@ function saveToStorage(){
   const data = places.map(p => ({
     id: p.id, name: p.name, category: p.category,
     emoji: p.emoji, lat: p.lat, lng: p.lng, visited: p.visited,
-    memo: p.memo || ''
+    memo: p.memo || '', address: p.address || ''
   }));
   localStorage.setItem('travelPins', JSON.stringify(data));
 }
@@ -403,11 +414,11 @@ function navigateToPlace(id){
   map.setLevel(4);
 }
  
-function finalizePlace(name, category, lat, lng){
+function finalizePlace(name, category, lat, lng, address){
   const info = CAT_INFO[category];
   const place = {
     id: idSeq++, name, category, emoji: info.emoji,
-    lat, lng, visited:false, memo:'', overlay:null
+    lat, lng, visited:false, memo:'', address: address || '', overlay:null
   };
   place.overlay = createOverlay(place.id, lat, lng, category, false, place.emoji);
   places.push(place);
@@ -462,7 +473,8 @@ function selectSearchResult(i){
   if(!selectedCat){ alert('먼저 카테고리를 선택하거나 추가해주세요.'); return; }
   const lat = parseFloat(d.y);
   const lng = parseFloat(d.x);
-  finalizePlace(d.place_name, selectedCat, lat, lng);
+  const address = d.road_address_name || d.address_name || '';
+  finalizePlace(d.place_name, selectedCat, lat, lng, address);
   map.setCenter(new kakao.maps.LatLng(lat, lng));
   map.setLevel(4);
   clearPreviewMarkers();
@@ -512,7 +524,7 @@ function renderPlaceList(){
       <div class="cardBody">
         <div class="cardNameArea" onclick="navigateToPlace(${p.id})" title="지도에서 보기">
           <div class="cardName">${escapeHtml(p.name)}</div>
-          <div class="cardMeta">${p.visited ? '✅ 방문완료' : '지도에서 핀을 눌러 방문 체크'}</div>
+          <div class="cardMeta">${p.visited ? '✅ ' : ''}${escapeHtml(p.address || '주소 정보 없음')}</div>
         </div>
         <textarea class="memoBox" placeholder="메모 남기기"
           onchange="editMemo(${p.id}, this.value)">${escapeHtml(p.memo || '')}</textarea>
