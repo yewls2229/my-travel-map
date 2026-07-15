@@ -12,6 +12,19 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="TraveLog">
 <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=bbcf39840e4999a45a371a2c7a7bf4d5&autoload=false&libraries=services"></script>
+<script>
+  window.__gmapsReady = false;
+  window.__gmapsCallbacks = [];
+  window.initGoogleMap = function(){
+    window.__gmapsReady = true;
+    window.__gmapsCallbacks.forEach(fn=>fn());
+    window.__gmapsCallbacks = [];
+  };
+  window.onGoogleMapsReady = function(fn){
+    if(window.__gmapsReady) fn(); else window.__gmapsCallbacks.push(fn);
+  };
+</script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCR6iMQWbTv3IcQxzG5ugtv3huU7P1IYCA&libraries=places&callback=initGoogleMap"></script>
 <style>
   :root{
     --ink: #1F3D3A;
@@ -27,7 +40,7 @@
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;height:100%;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--parchment);color:var(--ink);}
   #app{display:flex;height:100vh;overflow:hidden;position:relative;}
-
+ 
   /* ---------- Sidebar ---------- */
   #sidebar{
     width:340px;min-width:340px;
@@ -41,7 +54,7 @@
   }
   #sidebar.collapsed{ width:0; min-width:0; border-right:none; }
   #sidebarInner{ width:340px; height:100%; display:flex; flex-direction:column; flex-shrink:0; }
-
+ 
   #toggleSidebarBtn{
     position:absolute; top:18px; left:16px; z-index:1000;
     width:32px;height:32px;border-radius:50%;
@@ -61,7 +74,7 @@
     font-size:26px;margin:0 0 4px 0;letter-spacing:0.5px;font-weight:600;color:var(--ink);
   }
   #brand p{margin:0;font-size:12.5px;color:var(--text-soft);line-height:1.5;}
-
+ 
   #addForm{
     padding:14px 20px;
     border-bottom:1px solid var(--line);
@@ -81,7 +94,7 @@
   }
   #addForm input[type=text]::placeholder{color:#a8a091;}
   #addForm input[type=text]:focus{border-color:var(--gold);}
-
+ 
   /* ---------- Category list ---------- */
   .catList{display:flex;flex-direction:column;gap:6px;max-height:230px;overflow-y:auto;padding-right:2px;}
   .catListItem{
@@ -115,7 +128,7 @@
   .addCatRow .catMain{color:var(--text-soft);border-style:dashed;}
   .addCatRow{border-style:dashed;}
   .addCatRow .catMain:hover{color:var(--ink);}
-
+ 
   .searchRow{display:flex;gap:6px;}
   .searchRow input{flex:1;}
   .searchRow button{
@@ -132,7 +145,7 @@
   .searchName{font-size:12.5px;font-weight:600;}
   .searchAddr{font-size:10.5px;color:var(--text-soft);margin-top:1px;}
   .searchEmpty{font-size:12px;color:var(--text-soft);padding:4px 2px;}
-
+ 
   /* ---------- List ---------- */
   #listHeader{
     padding:12px 20px 8px 20px;font-size:12px;
@@ -171,9 +184,22 @@
   .delBtn{background:none;border:none;color:#b08a72;cursor:pointer;font-size:14px;flex-shrink:0;}
   .delBtn:hover{color:#E2723A;}
   .emptyState{color:var(--text-soft);font-size:12.5px;text-align:center;padding:30px 10px;line-height:1.6;}
-
+ 
   /* ---------- Map ---------- */
-  #map{flex:1;height:100%;}
+  #map, #mapGoogle{flex:1;height:100%;}
+  #mapGoogle{display:none;}
+ 
+  #mapProviderToggle{
+    position:absolute; top:16px; left:50%; transform:translateX(-50%);
+    z-index:999; display:flex; background:#fff; border-radius:999px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.2); padding:3px; gap:2px;
+  }
+  #mapProviderToggle button{
+    border:none;background:none;padding:7px 14px;border-radius:999px;
+    font-size:12.5px;font-weight:600;color:var(--text-soft);cursor:pointer;
+  }
+  #mapProviderToggle button.active{background:var(--ink);color:#fff;}
+ 
   .footPin{
     width:30px;height:30px;border-radius:50% 50% 50% 0;
     transform:rotate(-45deg);
@@ -185,7 +211,7 @@
   .footPin span{transform:rotate(45deg);font-size:14px;font-family:'Segoe UI Emoji','Noto Color Emoji','Apple Color Emoji',sans-serif;}
   .footPin.orange{background:var(--pin-yellow);}
   .footPin.green{background:var(--green);}
-
+ 
   /* ---------- Modals ---------- */
   .modalOverlay{
     display:none;position:fixed;inset:0;background:rgba(31,61,58,0.45);
@@ -218,18 +244,18 @@
       <h1>TraveLog</h1>
       <p>카테고리를 만들고, 장소를 검색해서 담아보세요. 지도의 핀을 누르면 방문/삭제를 고를 수 있어요.</p>
     </div>
-
+ 
     <div id="addForm">
       <div class="hint" id="hintText">① 카테고리 만들기 → ② 장소 검색 → ③ 담을 카테고리 체크</div>
       <div class="catList" id="catRow"></div>
-
+ 
       <div class="searchRow">
         <input type="text" id="searchInput" placeholder="🔎 장소 검색 (예: 서울역)" />
         <button id="searchBtn" type="button">검색</button>
       </div>
       <div id="searchResults"></div>
     </div>
-
+ 
     <div id="listHeader">
       <div>선택한 카테고리: <b id="activeCatLabel">없음</b> · <span id="countText">0</span>개</div>
       <input type="text" id="localFilterInput" placeholder="🔍 이 카테고리에서 검색" />
@@ -238,9 +264,14 @@
     </div>
   </div>
   <button id="toggleSidebarBtn" title="사이드바 접기/펼치기">☰</button>
+  <div id="mapProviderToggle">
+    <button id="btnProviderKr" class="active" data-provider="kr">🇰🇷 국내</button>
+    <button id="btnProviderIntl" data-provider="intl">🌍 해외</button>
+  </div>
   <div id="map"></div>
+  <div id="mapGoogle"></div>
 </div>
-
+ 
 <div class="modalOverlay" id="pinActionModal">
   <div class="modalBox">
     <div class="modalTitle" id="modalTitle"></div>
@@ -249,7 +280,7 @@
     <button class="modalBtn cancelBtn" id="modalCancelBtn">취소</button>
   </div>
 </div>
-
+ 
 <div class="modalOverlay" id="catPickModal">
   <div class="modalBox">
     <div class="modalTitle" id="catPickTitle"></div>
@@ -258,28 +289,30 @@
     <button class="modalBtn cancelBtn" id="catPickCancelBtn">취소</button>
   </div>
 </div>
-
+ 
 <script>
 const SUPABASE_URL = 'https://hladgocnwkdobcsxcmqk.supabase.co';
 const SUPABASE_KEY = 'sb_publishable__FWBn_--TTx2JgOtuwqyEQ_cnyqW6tw';
-
+ 
 const DEFAULT_KEYS = ['before_visit','after_visit'];
 let CAT_INFO = {};             // { key: {emoji,label,memo} }
 let customCategoryOrder = [];  // 커스텀 카테고리 우선순위 (지도 이모지 결정용)
 let places = [];               // {id, name, categories:[], emoji, lat, lng, visited, memo, address, overlay}
 let idSeq = 1;
 let map;
+let googleMap;
+let activeProvider = 'kr'; // 'kr' = 카카오맵, 'intl' = 구글맵
 let selectedCat = null;        // 목록 필터링용 (보기 전용)
 let pinActionTargetId = null;
 let pendingSearchResult = null;
-
+ 
 /* ---------- 클라우드(Supabase) 동기화 ---------- */
 let cloudSyncTimer = null;
 function queueCloudSync(){
   clearTimeout(cloudSyncTimer);
   cloudSyncTimer = setTimeout(()=>{ pushCloudState().catch(()=>{}); }, 700);
 }
-
+ 
 async function pushCloudState(){
   const state = {
     categories: CAT_INFO,
@@ -302,7 +335,7 @@ async function pushCloudState(){
   });
   return res.ok;
 }
-
+ 
 async function fetchCloudState(){
   const res = await fetch(`${SUPABASE_URL}/rest/v1/travelog_state?id=eq.main&select=data`, {
     headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
@@ -312,7 +345,7 @@ async function fetchCloudState(){
   if(!rows.length) return null;
   return rows[0].data;
 }
-
+ 
 /* ---------- 카테고리 저장/불러오기 (로컬) ---------- */
 function loadCategories(){
   const raw = localStorage.getItem('categories');
@@ -327,7 +360,7 @@ function loadCategories(){
 }
 function saveCategoriesLocal(){ localStorage.setItem('categories', JSON.stringify(CAT_INFO)); }
 function saveCategories(){ saveCategoriesLocal(); queueCloudSync(); }
-
+ 
 function loadCategoryOrder(){
   const raw = localStorage.getItem('categoryOrder');
   if(raw){ try{ customCategoryOrder = JSON.parse(raw); return; } catch(e){} }
@@ -336,7 +369,7 @@ function loadCategoryOrder(){
 }
 function saveCategoryOrderLocal(){ localStorage.setItem('categoryOrder', JSON.stringify(customCategoryOrder)); }
 function saveCategoryOrder(){ saveCategoryOrderLocal(); queueCloudSync(); }
-
+ 
 /* ---------- 장소 저장/불러오기 (로컬) ---------- */
 function saveToStorageLocal(){
   const data = places.map(p => ({
@@ -347,7 +380,7 @@ function saveToStorageLocal(){
   localStorage.setItem('travelPins', JSON.stringify(data));
 }
 function saveToStorage(){ saveToStorageLocal(); queueCloudSync(); }
-
+ 
 function loadFromStorage(){
   const raw = localStorage.getItem('travelPins');
   if(!raw) return;
@@ -363,17 +396,17 @@ function loadFromStorage(){
       categories.push(p.visited ? 'after_visit' : 'before_visit');
     }
     const emoji = p.emoji || getDisplayEmoji(categories);
-    const overlay = createOverlay(p.id, p.lat, p.lng, !!p.visited, emoji);
-    places.push({ ...p, categories, emoji, overlay });
+    const markers = createBothMarkers(p.id, p.lat, p.lng, !!p.visited, emoji);
+    places.push({ ...p, categories, emoji, overlay: markers.overlay, gMarker: markers.gMarker });
     if(p.id >= idSeq) idSeq = p.id + 1;
   });
 }
-
+ 
 const listEl = document.getElementById('list');
 const countText = document.getElementById('countText');
 const activeCatLabel = document.getElementById('activeCatLabel');
 const localFilterInput = document.getElementById('localFilterInput');
-
+ 
 /* ---------- 카테고리 UI ---------- */
 function catRowHtml(key){
   const info = CAT_INFO[key];
@@ -396,7 +429,7 @@ function catRowHtml(key){
     ${memoBox}
   </div>`;
 }
-
+ 
 function renderCatRow(){
   let html = '';
   html += catRowHtml('before_visit');
@@ -405,7 +438,7 @@ function renderCatRow(){
   html += `<div class="catListItem addCatRow" id="addCatBtn"><div class="catMain"><span class="catEmoji">➕</span><span class="catLabel">카테고리 추가</span></div></div>`;
   document.getElementById('catRow').innerHTML = html;
 }
-
+ 
 function addNewCategory(){
   const label = prompt('새 카테고리 이름을 입력하세요 (예: 카페, 서울여행)');
   if(!label || !label.trim()) return;
@@ -418,13 +451,16 @@ function addNewCategory(){
   saveCategoryOrder();
   selectCategory(key);
 }
-
+ 
 function deleteCategory(key){
   if(DEFAULT_KEYS.includes(key)) return;
   const info = CAT_INFO[key];
   if(!info) return;
   if(!confirm(`"${info.label}" 카테고리를 삭제할까요?\n이 카테고리에 담긴 장소도 함께 삭제돼요.`)) return;
-  places.filter(p => p.categories.includes(key)).forEach(p => p.overlay.setMap(null));
+  places.filter(p => p.categories.includes(key)).forEach(p => {
+    p.overlay.setMap(null);
+    if(p.gMarker) p.gMarker.setMap(null);
+  });
   places = places.filter(p => !p.categories.includes(key));
   delete CAT_INFO[key];
   customCategoryOrder = customCategoryOrder.filter(k => k !== key);
@@ -435,7 +471,7 @@ function deleteCategory(key){
   renderCatRow();
   renderPlaceList();
 }
-
+ 
 function moveCategory(key, dir){
   const idx = customCategoryOrder.indexOf(key);
   const newIdx = idx + dir;
@@ -445,33 +481,33 @@ function moveCategory(key, dir){
   renderCatRow();
   refreshAllPinEmojis();
 }
-
+ 
 function refreshAllPinEmojis(){
   let changed = false;
   places.forEach(p=>{
     const newEmoji = getDisplayEmoji(p.categories);
     if(newEmoji !== p.emoji){
       p.emoji = newEmoji;
-      p.overlay.setContent(makePinElement(p.id, p.visited, p.emoji));
+      updateMarkerVisuals(p);
       changed = true;
     }
   });
   if(changed){ saveToStorage(); renderPlaceList(); }
 }
-
+ 
 function selectCategory(key){
   selectedCat = key;
   localFilterInput.value = '';
   renderCatRow();
   renderPlaceList();
 }
-
+ 
 function editCategoryMemo(key, value){
   if(!CAT_INFO[key]) return;
   CAT_INFO[key].memo = value;
   saveCategories();
 }
-
+ 
 document.getElementById('catRow').addEventListener('click', (e)=>{
   if(e.target.closest('#addCatBtn')){ addNewCategory(); return; }
   const delBtn = e.target.closest('[data-del]');
@@ -485,20 +521,20 @@ document.getElementById('catRow').addEventListener('change', (e)=>{
   const box = e.target.closest('[data-catmemo]');
   if(box){ editCategoryMemo(box.dataset.catmemo, box.value); }
 });
-
+ 
 document.getElementById('searchBtn').addEventListener('click', doSearch);
 document.getElementById('searchInput').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter'){ e.preventDefault(); doSearch(); }
 });
 localFilterInput.addEventListener('input', renderPlaceList);
-
+ 
 const toggleBtn = document.getElementById('toggleSidebarBtn');
 const sidebarEl = document.getElementById('sidebar');
 toggleBtn.addEventListener('click', ()=>{
   sidebarEl.classList.toggle('collapsed');
   setTimeout(()=>{ if(map) map.relayout(); }, 260);
 });
-
+ 
 /* ---------- 지도 핀 ---------- */
 function getDisplayEmoji(categories){
   for(const key of customCategoryOrder){
@@ -508,7 +544,7 @@ function getDisplayEmoji(categories){
   if(CAT_INFO.before_visit) return CAT_INFO.before_visit.emoji;
   return '📍';
 }
-
+ 
 function makePinElement(id, visited, emoji){
   const div = document.createElement('div');
   div.className = 'footPin ' + (visited ? 'green' : 'orange');
@@ -518,7 +554,7 @@ function makePinElement(id, visited, emoji){
   div.addEventListener('touchstart', (e)=> e.stopPropagation());
   return div;
 }
-
+ 
 function createOverlay(id, lat, lng, visited, emoji){
   return new kakao.maps.CustomOverlay({
     position: new kakao.maps.LatLng(lat, lng),
@@ -528,7 +564,55 @@ function createOverlay(id, lat, lng, visited, emoji){
     map: map
   });
 }
-
+ 
+function makeGoogleIcon(visited){
+  return {
+    path: google.maps.SymbolPath.CIRCLE,
+    scale: 13,
+    fillColor: visited ? '#14B24E' : '#FFC53D',
+    fillOpacity: 1,
+    strokeColor: '#ffffff',
+    strokeWeight: 2
+  };
+}
+ 
+function createGoogleMarker(id, lat, lng, visited, emoji){
+  if(!window.__gmapsReady || !googleMap) return null;
+  const marker = new google.maps.Marker({
+    position: { lat, lng },
+    map: googleMap,
+    icon: makeGoogleIcon(visited),
+    label: { text: emoji || '📍', fontSize: '13px' }
+  });
+  marker.addListener('click', ()=> openPinAction(id));
+  return marker;
+}
+ 
+// 카카오맵 + 구글맵 마커를 동시에 만듦 (구글이 아직 준비 안 됐으면 나중에 채워짐)
+function createBothMarkers(id, lat, lng, visited, emoji){
+  const overlay = createOverlay(id, lat, lng, visited, emoji);
+  const gMarker = createGoogleMarker(id, lat, lng, visited, emoji);
+  return { overlay, gMarker };
+}
+ 
+// 구글 지도가 뒤늦게 준비됐을 때, 마커가 없는 장소들에 구글 마커를 채워넣음
+function ensureGoogleMarkers(){
+  if(!window.__gmapsReady || !googleMap) return;
+  places.forEach(p=>{
+    if(!p.gMarker){
+      p.gMarker = createGoogleMarker(p.id, p.lat, p.lng, p.visited, p.emoji);
+    }
+  });
+}
+ 
+function updateMarkerVisuals(p){
+  p.overlay.setContent(makePinElement(p.id, p.visited, p.emoji));
+  if(p.gMarker){
+    p.gMarker.setIcon(makeGoogleIcon(p.visited));
+    p.gMarker.setLabel({ text: p.emoji || '📍', fontSize: '13px' });
+  }
+}
+ 
 /* ---------- 방문/삭제 선택 모달 ---------- */
 function openPinAction(id){
   const p = places.find(x=>x.id===id);
@@ -555,7 +639,7 @@ document.getElementById('modalVisitBtn').addEventListener('click', ()=>{
       p.visited = true;
     }
     p.emoji = getDisplayEmoji(p.categories);
-    p.overlay.setContent(makePinElement(p.id, p.visited, p.emoji));
+    updateMarkerVisuals(p);
     saveToStorage();
     renderPlaceList();
   }
@@ -569,43 +653,64 @@ document.getElementById('modalCancelBtn').addEventListener('click', closePinActi
 document.getElementById('pinActionModal').addEventListener('click', (e)=>{
   if(e.target.id === 'pinActionModal') closePinAction();
 });
-
+ 
 function navigateToPlace(id){
   const p = places.find(x=>x.id===id);
-  if(!p || !map) return;
-  map.setCenter(new kakao.maps.LatLng(p.lat, p.lng));
-  map.setLevel(4);
+  if(!p) return;
+  if(activeProvider === 'kr' && map){
+    map.setCenter(new kakao.maps.LatLng(p.lat, p.lng));
+    map.setLevel(4);
+  } else if(activeProvider === 'intl' && googleMap){
+    googleMap.setCenter({ lat: p.lat, lng: p.lng });
+    googleMap.setZoom(15);
+  }
 }
-
+ 
 /* ---------- 장소 생성 ---------- */
 function finalizePlace(name, categories, lat, lng, address){
   const emoji = getDisplayEmoji(categories);
   const visited = categories.includes('after_visit');
   const place = {
     id: idSeq++, name, categories, emoji,
-    lat, lng, visited, memo:'', address: address || '', overlay:null
+    lat, lng, visited, memo:'', address: address || '', overlay:null, gMarker:null
   };
-  place.overlay = createOverlay(place.id, lat, lng, visited, emoji);
+  const markers = createBothMarkers(place.id, lat, lng, visited, emoji);
+  place.overlay = markers.overlay;
+  place.gMarker = markers.gMarker;
   places.push(place);
   saveToStorage();
   renderPlaceList();
   return place;
 }
-
+ 
 /* ---------- 검색 ---------- */
 let ps;
 let previewMarkers = [];
-
+let previewMarkersGoogle = [];
+ 
 function clearPreviewMarkers(){
   previewMarkers.forEach(m => m.setMap(null));
   previewMarkers = [];
 }
-
+function clearPreviewMarkersGoogle(){
+  previewMarkersGoogle.forEach(m => m.setMap(null));
+  previewMarkersGoogle = [];
+}
+ 
 function doSearch(){
   const keyword = document.getElementById('searchInput').value.trim();
   const resultsEl = document.getElementById('searchResults');
   clearPreviewMarkers();
+  clearPreviewMarkersGoogle();
   if(!keyword){ resultsEl.innerHTML = ''; return; }
+  if(activeProvider === 'kr'){
+    doSearchKakao(keyword, resultsEl);
+  } else {
+    doSearchGoogle(keyword, resultsEl);
+  }
+}
+ 
+function doSearchKakao(keyword, resultsEl){
   if(!ps){ alert('지도가 아직 준비 중이에요. 잠시 후 다시 시도해주세요.'); return; }
   ps.keywordSearch(keyword, (data, status)=>{
     if(status !== kakao.maps.services.Status.OK){
@@ -619,7 +724,7 @@ function doSearch(){
         <div class="searchName">${escapeHtml(d.place_name)}</div>
         <div class="searchAddr">${escapeHtml(d.road_address_name || d.address_name || '')}</div>
       </div>`).join('');
-
+ 
     const bounds = new kakao.maps.LatLngBounds();
     data.slice(0,6).forEach((d,i)=>{
       const pos = new kakao.maps.LatLng(parseFloat(d.y), parseFloat(d.x));
@@ -631,7 +736,45 @@ function doSearch(){
     if(data.length > 0) map.setBounds(bounds);
   });
 }
-
+ 
+function doSearchGoogle(keyword, resultsEl){
+  if(!window.__gmapsReady || !googleMap){
+    alert('구글 지도가 아직 준비 중이에요. 잠시 후 다시 시도해주세요.');
+    return;
+  }
+  const service = new google.maps.places.PlacesService(googleMap);
+  service.textSearch({ query: keyword }, (results, status)=>{
+    if(status !== google.maps.places.PlacesServiceStatus.OK || !results || !results.length){
+      resultsEl.innerHTML = '<div class="searchEmpty">검색 결과가 없어요.</div>';
+      window.__searchData = [];
+      return;
+    }
+    const mapped = results.slice(0,6).map(r=>({
+      place_name: r.name,
+      road_address_name: r.formatted_address || '',
+      address_name: r.formatted_address || '',
+      y: r.geometry.location.lat(),
+      x: r.geometry.location.lng()
+    }));
+    window.__searchData = mapped;
+    resultsEl.innerHTML = mapped.map((d,i)=>`
+      <div class="searchItem" onclick="selectSearchResult(${i})">
+        <div class="searchName">${escapeHtml(d.place_name)}</div>
+        <div class="searchAddr">${escapeHtml(d.road_address_name || d.address_name || '')}</div>
+      </div>`).join('');
+ 
+    const bounds = new google.maps.LatLngBounds();
+    mapped.forEach((d,i)=>{
+      const pos = { lat: d.y, lng: d.x };
+      const marker = new google.maps.Marker({ position: pos, map: googleMap });
+      marker.addListener('click', ()=> selectSearchResult(i));
+      previewMarkersGoogle.push(marker);
+      bounds.extend(pos);
+    });
+    googleMap.fitBounds(bounds);
+  });
+}
+ 
 function selectSearchResult(i){
   const d = window.__searchData[i];
   if(!d) return;
@@ -643,7 +786,7 @@ function selectSearchResult(i){
   };
   openCatPickModal();
 }
-
+ 
 /* ---------- 담을 카테고리 선택 모달 ---------- */
 function openCatPickModal(){
   document.getElementById('catPickTitle').textContent = pendingSearchResult.name;
@@ -663,6 +806,7 @@ function closeCatPickModal(){
   document.getElementById('catPickModal').style.display = 'none';
   pendingSearchResult = null;
   clearPreviewMarkers();
+  clearPreviewMarkersGoogle();
   document.getElementById('searchResults').innerHTML = '';
   document.getElementById('searchInput').value = '';
 }
@@ -672,37 +816,43 @@ document.getElementById('catPickConfirmBtn').addEventListener('click', ()=>{
   const categories = ['before_visit', ...checked];
   const { name, lat, lng, address } = pendingSearchResult;
   finalizePlace(name, categories, lat, lng, address);
-  map.setCenter(new kakao.maps.LatLng(lat, lng));
-  map.setLevel(4);
+  if(activeProvider === 'kr' && map){
+    map.setCenter(new kakao.maps.LatLng(lat, lng));
+    map.setLevel(4);
+  } else if(activeProvider === 'intl' && googleMap){
+    googleMap.setCenter({ lat, lng });
+    googleMap.setZoom(15);
+  }
   closeCatPickModal();
 });
 document.getElementById('catPickCancelBtn').addEventListener('click', closeCatPickModal);
 document.getElementById('catPickModal').addEventListener('click', (e)=>{
   if(e.target.id === 'catPickModal') closeCatPickModal();
 });
-
+ 
 /* ---------- 장소 삭제/메모 ---------- */
 function removePlace(id){
   const idx = places.findIndex(x=>x.id===id);
   if(idx === -1) return;
   places[idx].overlay.setMap(null);
+  if(places[idx].gMarker) places[idx].gMarker.setMap(null);
   places.splice(idx,1);
   saveToStorage();
   renderPlaceList();
 }
-
+ 
 function editMemo(id, value){
   const p = places.find(x=>x.id===id);
   if(!p) return;
   p.memo = value;
   saveToStorage();
 }
-
+ 
 /* ---------- 목록 렌더링 ---------- */
 function renderPlaceList(){
   const label = (selectedCat && CAT_INFO[selectedCat]) ? CAT_INFO[selectedCat].label : '없음';
   activeCatLabel.textContent = label;
-
+ 
   if(!selectedCat){
     countText.textContent = '0';
     listEl.innerHTML = '<div class="emptyState">먼저 카테고리를 추가하거나 선택해주세요.</div>';
@@ -711,7 +861,7 @@ function renderPlaceList(){
   const query = (localFilterInput.value || '').trim().toLowerCase();
   let filtered = places.filter(p => p.categories.includes(selectedCat));
   if(query) filtered = filtered.filter(p => p.name.toLowerCase().includes(query));
-
+ 
   countText.textContent = filtered.length;
   if(filtered.length === 0){
     listEl.innerHTML = query
@@ -733,20 +883,20 @@ function renderPlaceList(){
       <button class="delBtn" onclick="removePlace(${p.id})" title="삭제">✕</button>
     </div>`).join('');
 }
-
+ 
 function escapeHtml(str){
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
 }
-
+ 
 async function initData(){
   const hintEl = document.getElementById('hintText');
   hintEl.textContent = '☁️ 데이터 불러오는 중...';
-
+ 
   let cloud = null;
   try{ cloud = await fetchCloudState(); } catch(e){ cloud = null; }
-
+ 
   if(cloud){
     CAT_INFO = cloud.categories || {};
     if(!CAT_INFO.before_visit) CAT_INFO.before_visit = { emoji:'📍', label:'방문 전', memo:'' };
@@ -754,7 +904,7 @@ async function initData(){
     customCategoryOrder = cloud.categoryOrder || Object.keys(CAT_INFO).filter(k => !DEFAULT_KEYS.includes(k));
     saveCategoriesLocal();
     saveCategoryOrderLocal();
-
+ 
     places = [];
     (cloud.places || []).forEach(p=>{
       let categories = p.categories || [];
@@ -762,7 +912,8 @@ async function initData(){
         categories = [...categories, p.visited ? 'after_visit' : 'before_visit'];
       }
       const overlay = createOverlay(p.id, p.lat, p.lng, !!p.visited, p.emoji);
-      places.push({ ...p, categories, overlay });
+      const gMarker = createGoogleMarker(p.id, p.lat, p.lng, !!p.visited, p.emoji);
+      places.push({ ...p, categories, overlay, gMarker });
       if(p.id >= idSeq) idSeq = p.id + 1;
     });
     saveToStorageLocal();
@@ -773,12 +924,50 @@ async function initData(){
     loadFromStorage();
     queueCloudSync();
   }
-
+ 
   hintEl.textContent = '① 카테고리 만들기 → ② 장소 검색 → ③ 담을 카테고리 체크';
   renderCatRow();
   renderPlaceList();
 }
-
+ 
+/* ---------- 국내/해외 지도 전환 ---------- */
+function switchProvider(provider){
+  if(provider === activeProvider) return;
+  activeProvider = provider;
+  document.getElementById('btnProviderKr').classList.toggle('active', provider === 'kr');
+  document.getElementById('btnProviderIntl').classList.toggle('active', provider === 'intl');
+  document.getElementById('map').style.display = (provider === 'kr') ? 'block' : 'none';
+  document.getElementById('mapGoogle').style.display = (provider === 'intl') ? 'block' : 'none';
+ 
+  // 검색 상태 초기화 (지도가 바뀌면 이전 검색 결과는 의미 없음)
+  document.getElementById('searchResults').innerHTML = '';
+  document.getElementById('searchInput').value = '';
+  clearPreviewMarkers();
+  clearPreviewMarkersGoogle();
+ 
+  if(provider === 'kr'){
+    setTimeout(()=>{ if(map) map.relayout(); }, 50);
+  } else {
+    ensureGoogleMarkers();
+    setTimeout(()=>{ if(googleMap) google.maps.event.trigger(googleMap, 'resize'); }, 50);
+  }
+}
+document.getElementById('btnProviderKr').addEventListener('click', ()=> switchProvider('kr'));
+document.getElementById('btnProviderIntl').addEventListener('click', ()=> switchProvider('intl'));
+ 
+function initGoogleMapInstance(){
+  const container = document.getElementById('mapGoogle');
+  googleMap = new google.maps.Map(container, {
+    center: { lat: 48.8566, lng: 2.3522 }, // 기본값: 파리 (해외 여행 느낌으로)
+    zoom: 5,
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: false
+  });
+  ensureGoogleMarkers();
+}
+onGoogleMapsReady(initGoogleMapInstance);
+ 
 kakao.maps.load(function(){
   const container = document.getElementById('map');
   map = new kakao.maps.Map(container, {
@@ -787,9 +976,9 @@ kakao.maps.load(function(){
   });
   map.setZoomable(true);
   ps = new kakao.maps.services.Places();
-
+ 
   initData();
-
+ 
   if(navigator.geolocation){
     navigator.geolocation.getCurrentPosition(
       pos => {
@@ -800,7 +989,7 @@ kakao.maps.load(function(){
     );
   }
 });
-
+ 
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('sw.js').catch(()=>{});
@@ -809,3 +998,4 @@ if('serviceWorker' in navigator){
 </script>
 </body>
 </html>
+ 
