@@ -11,10 +11,13 @@
     --parchment: #F6F1E7;
     --parchment-2: #EFE7D6;
     --orange: #E2723A;
-    --green: #5B8C6E;
+    --green: #14B24E;
+    --pin-yellow: #FFC53D;
     --gold: #C9A15A;
-    --line: #DCD3BF;
-    --text-soft: #6B6355;
+    --line: #E4DFD2;
+    --text-soft: #7C7264;
+    --sb-bg: #FFFFFF;
+    --sb-input: #F5F3ED;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;height:100%;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--parchment);color:var(--ink);}
@@ -23,67 +26,68 @@
   /* ---------- Sidebar ---------- */
   #sidebar{
     width:340px;min-width:340px;
-    background:var(--ink);
-    color:var(--parchment);
+    background:var(--sb-bg);
+    color:var(--ink);
     display:flex;flex-direction:column;
     height:100%;
+    border-right:1px solid var(--line);
     transition: width .25s ease, min-width .25s ease;
     overflow:hidden;
   }
-  #sidebar.collapsed{ width:0; min-width:0; }
+  #sidebar.collapsed{ width:0; min-width:0; border-right:none; }
   #sidebarInner{ width:340px; height:100%; display:flex; flex-direction:column; flex-shrink:0; }
  
   #toggleSidebarBtn{
-    position:absolute; top:16px; left:340px; z-index:1000;
-    transform:translateX(-50%);
-    width:30px;height:30px;border-radius:50%;
-    background:var(--ink);color:var(--parchment);border:2px solid var(--gold);
-    cursor:pointer;font-size:13px;line-height:1;
+    position:absolute; top:18px; left:16px; z-index:1000;
+    width:32px;height:32px;border-radius:50%;
+    background:var(--sb-bg);color:var(--ink);border:1px solid var(--line);
+    cursor:pointer;font-size:15px;line-height:1;
     display:flex;align-items:center;justify-content:center;
-    transition:left .25s ease;
-    box-shadow:0 2px 6px rgba(0,0,0,0.3);
+    box-shadow:0 2px 6px rgba(0,0,0,0.15);
   }
-  #toggleSidebarBtn.collapsed{ left:0; }
+  #toggleSidebarBtn:hover{border-color:var(--gold);}
   #brand{
-    padding:22px 20px 14px 20px;
-    border-bottom:1px solid rgba(246,241,231,0.15);
+    padding:22px 20px 14px 58px;
+    border-bottom:1px solid var(--line);
   }
   #brand h1{
     font-family:Georgia,'Times New Roman',serif;
-    font-size:26px;margin:0 0 4px 0;letter-spacing:0.5px;font-weight:600;
+    font-size:26px;margin:0 0 4px 0;letter-spacing:0.5px;font-weight:600;color:var(--ink);
   }
-  #brand p{margin:0;font-size:12.5px;color:#B7C9C2;line-height:1.5;}
+  #brand p{margin:0;font-size:12.5px;color:var(--text-soft);line-height:1.5;}
  
   #addForm{
     padding:16px 20px;
-    border-bottom:1px solid rgba(246,241,231,0.15);
+    border-bottom:1px solid var(--line);
     display:flex;flex-direction:column;gap:8px;
   }
   #addForm .hint{
-    font-size:12px;color:#B7C9C2;background:rgba(246,241,231,0.08);
+    font-size:12px;color:var(--text-soft);background:var(--sb-input);
     padding:8px 10px;border-radius:6px;line-height:1.5;
   }
   #addForm input[type=text]{
-    background:rgba(246,241,231,0.1);
-    border:1px solid rgba(246,241,231,0.25);
-    color:var(--parchment);
+    background:var(--sb-input);
+    border:1px solid var(--line);
+    color:var(--ink);
     padding:9px 10px;border-radius:6px;font-size:13.5px;outline:none;
   }
-  #addForm input[type=text]::placeholder{color:#9FB3AB;}
+  #addForm input[type=text]::placeholder{color:#a8a091;}
   #addForm input[type=text]:focus{border-color:var(--gold);}
  
   .catRow{display:flex;gap:6px;flex-wrap:wrap;}
   .catBtn{
     flex:1;min-width:60px;
-    background:rgba(246,241,231,0.08);
-    border:1px solid rgba(246,241,231,0.2);
-    color:var(--parchment);
+    background:var(--sb-input);
+    border:1px solid var(--line);
+    color:var(--ink);
     padding:7px 6px;border-radius:6px;font-size:12.5px;cursor:pointer;
     display:flex;flex-direction:column;align-items:center;gap:2px;
     transition:all .15s ease;
   }
-  .catBtn.active{background:var(--gold);border-color:var(--gold);color:#1F3D3A;font-weight:600;}
+  .catBtn.active{background:var(--gold);border-color:var(--gold);color:#fff;font-weight:600;}
   .catBtn:hover{border-color:var(--gold);}
+  .addCatBtn{border-style:dashed;color:var(--text-soft);}
+  .addCatBtn:hover{color:var(--ink);}
  
   #customEmojiWrap{display:none;gap:8px;}
   #customEmojiWrap.show{display:flex;}
@@ -95,74 +99,74 @@
     letter-spacing:0.3px;
   }
   #addBtn:hover{background:#cf6733;}
-  #addBtn:disabled{background:#8a8074;cursor:not-allowed;}
+  #addBtn:disabled{background:#c9c2b4;cursor:not-allowed;}
  
   #placingNote{
-    display:none;font-size:12px;color:var(--gold);padding:0 20px;margin-top:-4px;
+    display:none;font-size:12px;color:#b5842a;padding:0 20px;margin-top:-4px;
   }
   #placingNote.show{display:block;}
  
   .searchRow{display:flex;gap:6px;}
   .searchRow input{flex:1;}
   .searchRow button{
-    background:var(--gold);border:none;color:var(--ink);
+    background:var(--gold);border:none;color:#fff;
     border-radius:6px;padding:0 12px;cursor:pointer;font-size:14px;
   }
-  .searchRow button:hover{background:#d8ae66;}
+  .searchRow button:hover{background:#b98d45;}
   #searchResults{display:flex;flex-direction:column;gap:4px;}
   .searchItem{
-    background:rgba(246,241,231,0.08);border:1px solid rgba(246,241,231,0.15);
+    background:var(--sb-input);border:1px solid var(--line);
     border-radius:6px;padding:6px 8px;cursor:pointer;
   }
-  .searchItem:hover{border-color:var(--gold);background:rgba(246,241,231,0.14);}
+  .searchItem:hover{border-color:var(--gold);background:#EFE9D8;}
   .searchName{font-size:12.5px;font-weight:600;}
-  .searchAddr{font-size:10.5px;color:#9FB3AB;margin-top:1px;}
-  .searchEmpty{font-size:12px;color:#9FB3AB;padding:4px 2px;}
+  .searchAddr{font-size:10.5px;color:var(--text-soft);margin-top:1px;}
+  .searchEmpty{font-size:12px;color:var(--text-soft);padding:4px 2px;}
  
   /* ---------- List ---------- */
   #listHeader{
     padding:12px 20px 6px 20px;font-size:11.5px;letter-spacing:1px;
-    color:#9FB3AB;text-transform:uppercase;
+    color:var(--text-soft);text-transform:uppercase;
   }
   #list{flex:1;overflow-y:auto;padding:4px 12px 20px 12px;}
   .placeCard{
-    background:rgba(246,241,231,0.06);
-    border:1px solid rgba(246,241,231,0.12);
+    background:#FCFBF8;
+    border:1px solid var(--line);
     border-radius:8px;padding:10px 12px;margin-bottom:8px;
     display:flex;align-items:flex-start;gap:10px;
   }
-  .placeCard.visited{opacity:0.6;}
+  .placeCard.visited{opacity:0.65;}
   .rankBadge{
     min-width:22px;height:22px;border-radius:50%;
-    background:rgba(246,241,231,0.12);
+    background:var(--sb-input);
     display:flex;align-items:center;justify-content:center;
-    font-size:11px;color:#B7C9C2;font-weight:600;flex-shrink:0;margin-top:2px;
+    font-size:11px;color:var(--text-soft);font-weight:600;flex-shrink:0;margin-top:2px;
   }
   .pinIcon{font-size:18px;flex-shrink:0;margin-top:1px;}
   .cardBody{flex:1;min-width:0;}
-  .cardName{font-size:14px;font-weight:600;color:var(--parchment);word-break:break-word;}
-  .cardMeta{font-size:11px;color:#9FB3AB;margin-top:2px;}
+  .cardName{font-size:14px;font-weight:600;color:var(--ink);word-break:break-word;}
+  .cardMeta{font-size:11px;color:var(--text-soft);margin-top:2px;}
   .memoBox{
-    width:100%;margin-top:6px;background:rgba(246,241,231,0.08);
-    border:1px solid rgba(246,241,231,0.18);border-radius:5px;
-    color:var(--parchment);font-size:12px;padding:5px 7px;
+    width:100%;margin-top:6px;background:var(--sb-input);
+    border:1px solid var(--line);border-radius:5px;
+    color:var(--ink);font-size:12px;padding:5px 7px;
     resize:vertical;min-height:28px;font-family:inherit;
   }
-  .memoBox::placeholder{color:#8a9891;}
+  .memoBox::placeholder{color:#a8a091;}
   .memoBox:focus{outline:none;border-color:var(--gold);}
   .cardActions{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;}
   .orderBtns{display:flex;flex-direction:column;gap:2px;}
   .orderBtns button{
-    background:none;border:none;color:#B7C9C2;cursor:pointer;font-size:11px;
+    background:none;border:none;color:var(--text-soft);cursor:pointer;font-size:11px;
     padding:0;line-height:1;
   }
   .orderBtns button:hover{color:var(--gold);}
   .checkWrap{display:flex;align-items:center;gap:4px;}
   .checkWrap input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--green);}
   .checkWrap input[type=checkbox]:disabled{cursor:not-allowed;opacity:0.35;}
-  .delBtn{background:none;border:none;color:#8a6d5c;cursor:pointer;font-size:14px;}
+  .delBtn{background:none;border:none;color:#b08a72;cursor:pointer;font-size:14px;}
   .delBtn:hover{color:var(--orange);}
-  .emptyState{color:#8a9891;font-size:12.5px;text-align:center;padding:30px 10px;line-height:1.6;}
+  .emptyState{color:var(--text-soft);font-size:12.5px;text-align:center;padding:30px 10px;line-height:1.6;}
  
   /* ---------- Map ---------- */
   #map{flex:1;height:100%;}
@@ -171,10 +175,10 @@
     transform:rotate(-45deg);
     display:flex;align-items:center;justify-content:center;
     box-shadow:0 2px 6px rgba(0,0,0,0.35);
-    border:2px solid rgba(255,255,255,0.85);
+    border:2px solid rgba(255,255,255,0.9);
   }
   .footPin span{transform:rotate(45deg);font-size:14px;}
-  .footPin.orange{background:var(--orange);}
+  .footPin.orange{background:var(--pin-yellow);}
   .footPin.green{background:var(--green);}
   .footPin.custom{background:var(--gold);border-radius:50%;transform:none;}
   .footPin.custom span{transform:none;font-size:16px;}
@@ -193,12 +197,7 @@
       <div class="hint" id="hintText">① 장소 이름과 카테고리를 고른 뒤 → ② 지도를 클릭하거나 검색해서 위치를 지정하세요.</div>
       <input type="text" id="nameInput" placeholder="장소 이름 (예: 서울역)" />
  
-      <div class="catRow">
-        <div class="catBtn active" data-cat="cafe"><span>☕</span><span>카페</span></div>
-        <div class="catBtn" data-cat="food"><span>🍽️</span><span>식당</span></div>
-        <div class="catBtn" data-cat="sight"><span>🏞️</span><span>관광</span></div>
-        <div class="catBtn" data-cat="custom"><span>✨</span><span>커스텀</span></div>
-      </div>
+      <div class="catRow" id="catRow"></div>
  
       <div id="customEmojiWrap">
         <input type="text" id="emojiInput" maxlength="2" placeholder="🐱" />
@@ -219,17 +218,57 @@
     <div id="list"></div>
     </div>
   </div>
-  <button id="toggleSidebarBtn" title="사이드바 접기/펼치기">◀</button>
+  <button id="toggleSidebarBtn" title="사이드바 접기/펼치기">☰</button>
   <div id="map"></div>
 </div>
  
 <script>
-const CAT_INFO = {
+const BASE_CAT_INFO = {
   cafe:  { emoji:'☕', label:'카페' },
   food:  { emoji:'🍽️', label:'식당' },
   sight: { emoji:'🏞️', label:'관광' },
-  custom:{ emoji:'✨', label:'커스텀' }
+  custom:{ emoji:'✨', label:'커스텀(1회성)' }
 };
+let CAT_INFO = { ...BASE_CAT_INFO };
+ 
+function loadCustomCategories(){
+  const raw = localStorage.getItem('customCategories');
+  if(!raw) return;
+  try{ Object.assign(CAT_INFO, JSON.parse(raw)); } catch(e){}
+}
+ 
+function saveCustomCategories(){
+  const extra = {};
+  Object.keys(CAT_INFO).forEach(k=>{ if(!BASE_CAT_INFO[k]) extra[k] = CAT_INFO[k]; });
+  localStorage.setItem('customCategories', JSON.stringify(extra));
+}
+ 
+function catBtnHtml(key){
+  const info = CAT_INFO[key];
+  const active = key === selectedCat ? ' active' : '';
+  return `<div class="catBtn${active}" data-cat="${key}"><span>${info.emoji}</span><span>${info.label}</span></div>`;
+}
+ 
+function renderCatRow(){
+  let html = '';
+  ['cafe','food','sight'].forEach(k=>{ html += catBtnHtml(k); });
+  Object.keys(CAT_INFO).forEach(k=>{ if(!BASE_CAT_INFO[k]) html += catBtnHtml(k); });
+  html += catBtnHtml('custom');
+  html += `<div class="catBtn addCatBtn" id="addCatBtn"><span>➕</span><span>추가</span></div>`;
+  document.getElementById('catRow').innerHTML = html;
+}
+ 
+function addNewCategory(){
+  const label = prompt('새 카테고리 이름을 입력하세요 (예: 쇼핑, 숙소)');
+  if(!label || !label.trim()) return;
+  const emoji = prompt('이 카테고리에 쓸 기본 이모티콘을 입력하세요', '📍');
+  if(!emoji || !emoji.trim()) return;
+  const key = 'cat_' + Date.now();
+  CAT_INFO[key] = { emoji: emoji.trim(), label: label.trim() };
+  saveCustomCategories();
+  selectedCat = key;
+  renderCatRow();
+}
  
 let places = [];   // {id, name, category, emoji, lat, lng, visited, memo, overlay}
 let idSeq = 1;
@@ -268,14 +307,18 @@ const countText = document.getElementById('countText');
 const customEmojiWrap = document.getElementById('customEmojiWrap');
 const emojiInput = document.getElementById('emojiInput');
  
-document.querySelectorAll('.catBtn').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    document.querySelectorAll('.catBtn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    selectedCat = btn.dataset.cat;
-    customEmojiWrap.classList.toggle('show', selectedCat === 'custom');
-  });
+document.getElementById('catRow').addEventListener('click', (e)=>{
+  const addBtnEl = e.target.closest('#addCatBtn');
+  if(addBtnEl){ addNewCategory(); return; }
+  const btn = e.target.closest('.catBtn');
+  if(!btn) return;
+  selectedCat = btn.dataset.cat;
+  customEmojiWrap.classList.toggle('show', selectedCat === 'custom');
+  renderCatRow();
 });
+ 
+loadCustomCategories();
+renderCatRow();
  
 document.getElementById('searchBtn').addEventListener('click', doSearch);
 document.getElementById('searchInput').addEventListener('keydown', (e)=>{
@@ -285,9 +328,7 @@ document.getElementById('searchInput').addEventListener('keydown', (e)=>{
 const toggleBtn = document.getElementById('toggleSidebarBtn');
 const sidebarEl = document.getElementById('sidebar');
 toggleBtn.addEventListener('click', ()=>{
-  const collapsed = sidebarEl.classList.toggle('collapsed');
-  toggleBtn.classList.toggle('collapsed', collapsed);
-  toggleBtn.textContent = collapsed ? '▶' : '◀';
+  sidebarEl.classList.toggle('collapsed');
   setTimeout(()=>{ if(map) map.relayout(); }, 260);
 });
  
@@ -348,10 +389,17 @@ function onMapClick(mouseEvent){
 }
  
 let ps; // kakao.maps.services.Places 인스턴스 (SDK 로드 후 생성)
+let previewMarkers = []; // 검색 결과 미리보기 마커
+ 
+function clearPreviewMarkers(){
+  previewMarkers.forEach(m => m.setMap(null));
+  previewMarkers = [];
+}
  
 function doSearch(){
   const keyword = document.getElementById('searchInput').value.trim();
   const resultsEl = document.getElementById('searchResults');
+  clearPreviewMarkers();
   if(!keyword){ resultsEl.innerHTML = ''; return; }
   if(!ps){ alert('지도가 아직 준비 중이에요. 잠시 후 다시 시도해주세요.'); return; }
   ps.keywordSearch(keyword, (data, status)=>{
@@ -366,6 +414,17 @@ function doSearch(){
         <div class="searchName">${escapeHtml(d.place_name)}</div>
         <div class="searchAddr">${escapeHtml(d.road_address_name || d.address_name || '')}</div>
       </div>`).join('');
+ 
+    // 지도 위에도 미리보기 마커를 찍어서, 지도에서 직접 클릭해 선택할 수 있게 함
+    const bounds = new kakao.maps.LatLngBounds();
+    data.slice(0,6).forEach((d,i)=>{
+      const pos = new kakao.maps.LatLng(parseFloat(d.y), parseFloat(d.x));
+      const marker = new kakao.maps.Marker({ position: pos, map: map });
+      kakao.maps.event.addListener(marker, 'click', ()=> selectSearchResult(i));
+      previewMarkers.push(marker);
+      bounds.extend(pos);
+    });
+    if(data.length > 0) map.setBounds(bounds);
   });
 }
  
@@ -382,6 +441,7 @@ function selectSearchResult(i){
   finalizePlace(name, selectedCat, customEmoji, lat, lng);
   map.setCenter(new kakao.maps.LatLng(lat, lng));
   map.setLevel(4);
+  clearPreviewMarkers();
   document.getElementById('searchResults').innerHTML = '';
   document.getElementById('searchInput').value = '';
   nameInput.value = '';
@@ -442,7 +502,7 @@ function renderList(){
     return;
   }
   listEl.innerHTML = places.map((p, i)=>{
-    const label = p.category === 'custom' ? '커스텀' : CAT_INFO[p.category].label;
+    const label = (CAT_INFO[p.category] && CAT_INFO[p.category].label) || p.category;
     const disabled = p.category === 'custom' ? 'disabled' : '';
     return `
     <div class="placeCard ${p.visited ? 'visited':''}">
