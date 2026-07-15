@@ -3,14 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>발걸음 · 나의 여행 지도</title>
+<title>여행 버킷리스트</title>
 <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=bbcf39840e4999a45a371a2c7a7bf4d5&autoload=false&libraries=services"></script>
 <style>
   :root{
     --ink: #1F3D3A;
     --parchment: #F6F1E7;
-    --parchment-2: #EFE7D6;
-    --orange: #E2723A;
     --green: #14B24E;
     --pin-yellow: #FFC53D;
     --gold: #C9A15A;
@@ -89,23 +87,6 @@
   .addCatBtn{border-style:dashed;color:var(--text-soft);}
   .addCatBtn:hover{color:var(--ink);}
  
-  #customEmojiWrap{display:none;gap:8px;}
-  #customEmojiWrap.show{display:flex;}
-  #customEmojiWrap input{width:60px;text-align:center;font-size:18px;}
- 
-  #addBtn{
-    margin-top:4px;background:var(--orange);color:#fff;border:none;
-    padding:10px;border-radius:6px;font-size:13.5px;font-weight:600;cursor:pointer;
-    letter-spacing:0.3px;
-  }
-  #addBtn:hover{background:#cf6733;}
-  #addBtn:disabled{background:#c9c2b4;cursor:not-allowed;}
- 
-  #placingNote{
-    display:none;font-size:12px;color:#b5842a;padding:0 20px;margin-top:-4px;
-  }
-  #placingNote.show{display:block;}
- 
   .searchRow{display:flex;gap:6px;}
   .searchRow input{flex:1;}
   .searchRow button{
@@ -125,9 +106,10 @@
  
   /* ---------- List ---------- */
   #listHeader{
-    padding:12px 20px 6px 20px;font-size:11.5px;letter-spacing:1px;
-    color:var(--text-soft);text-transform:uppercase;
+    padding:12px 20px 6px 20px;font-size:12px;
+    color:var(--text-soft);
   }
+  #listHeader b{color:var(--ink);}
   #list{flex:1;overflow-y:auto;padding:4px 12px 20px 12px;}
   .placeCard{
     background:#FCFBF8;
@@ -136,13 +118,7 @@
     display:flex;align-items:flex-start;gap:10px;
   }
   .placeCard.visited{opacity:0.65;}
-  .rankBadge{
-    min-width:22px;height:22px;border-radius:50%;
-    background:var(--sb-input);
-    display:flex;align-items:center;justify-content:center;
-    font-size:11px;color:var(--text-soft);font-weight:600;flex-shrink:0;margin-top:2px;
-  }
-  .pinIcon{font-size:18px;flex-shrink:0;margin-top:1px;}
+  .pinIcon{font-size:18px;flex-shrink:0;margin-top:1px;cursor:pointer;}
   .cardBody{flex:1;min-width:0;}
   .cardName{font-size:14px;font-weight:600;color:var(--ink);word-break:break-word;}
   .cardMeta{font-size:11px;color:var(--text-soft);margin-top:2px;}
@@ -154,18 +130,8 @@
   }
   .memoBox::placeholder{color:#a8a091;}
   .memoBox:focus{outline:none;border-color:var(--gold);}
-  .cardActions{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;}
-  .orderBtns{display:flex;flex-direction:column;gap:2px;}
-  .orderBtns button{
-    background:none;border:none;color:var(--text-soft);cursor:pointer;font-size:11px;
-    padding:0;line-height:1;
-  }
-  .orderBtns button:hover{color:var(--gold);}
-  .checkWrap{display:flex;align-items:center;gap:4px;}
-  .checkWrap input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--green);}
-  .checkWrap input[type=checkbox]:disabled{cursor:not-allowed;opacity:0.35;}
-  .delBtn{background:none;border:none;color:#b08a72;cursor:pointer;font-size:14px;}
-  .delBtn:hover{color:var(--orange);}
+  .delBtn{background:none;border:none;color:#b08a72;cursor:pointer;font-size:14px;flex-shrink:0;}
+  .delBtn:hover{color:#E2723A;}
   .emptyState{color:var(--text-soft);font-size:12.5px;text-align:center;padding:30px 10px;line-height:1.6;}
  
   /* ---------- Map ---------- */
@@ -176,12 +142,11 @@
     display:flex;align-items:center;justify-content:center;
     box-shadow:0 2px 6px rgba(0,0,0,0.35);
     border:2px solid rgba(255,255,255,0.9);
+    cursor:pointer;
   }
   .footPin span{transform:rotate(45deg);font-size:14px;}
   .footPin.orange{background:var(--pin-yellow);}
   .footPin.green{background:var(--green);}
-  .footPin.custom{background:var(--gold);border-radius:50%;transform:none;}
-  .footPin.custom span{transform:none;font-size:16px;}
 </style>
 </head>
 <body>
@@ -189,23 +154,13 @@
   <div id="sidebar">
     <div id="sidebarInner">
     <div id="brand">
-      <h1>발걸음</h1>
-      <p>지도를 클릭해 가고 싶은 곳을 핀으로 남겨보세요. 목록 위쪽일수록 우선순위가 높아요.</p>
+      <h1>여행 버킷리스트</h1>
+      <p>카테고리를 만들고, 검색해서 장소를 담아보세요. 지도의 핀을 누르면 방문 체크가 돼요.</p>
     </div>
  
     <div id="addForm">
-      <div class="hint" id="hintText">① 장소 이름과 카테고리를 고른 뒤 → ② 지도를 클릭하거나 검색해서 위치를 지정하세요.</div>
-      <input type="text" id="nameInput" placeholder="장소 이름 (예: 서울역)" />
- 
+      <div class="hint" id="hintText">① 카테고리를 만들거나 선택 → ② 검색해서 장소 추가</div>
       <div class="catRow" id="catRow"></div>
- 
-      <div id="customEmojiWrap">
-        <input type="text" id="emojiInput" maxlength="2" placeholder="🐱" />
-        <span style="font-size:12px;color:#9FB3AB;align-self:center;">원하는 이모티콘을 넣어주세요 (방문 체크 불가)</span>
-      </div>
- 
-      <button id="addBtn">지도에서 위치 지정하기</button>
-      <div id="placingNote">📍 지도를 클릭해서 위치를 정해주세요...</div>
  
       <div class="searchRow">
         <input type="text" id="searchInput" placeholder="🔎 장소 검색 (예: 서울역)" />
@@ -214,7 +169,7 @@
       <div id="searchResults"></div>
     </div>
  
-    <div id="listHeader">우선순위 목록 (<span id="countText">0</span>)</div>
+    <div id="listHeader">선택한 카테고리: <b id="activeCatLabel">없음</b> · <span id="countText">0</span>개</div>
     <div id="list"></div>
     </div>
   </div>
@@ -223,56 +178,20 @@
 </div>
  
 <script>
-const BASE_CAT_INFO = {
-  cafe:  { emoji:'☕', label:'카페' },
-  food:  { emoji:'🍽️', label:'식당' },
-  sight: { emoji:'🏞️', label:'관광' },
-  custom:{ emoji:'✨', label:'커스텀(1회성)' }
-};
-let CAT_INFO = { ...BASE_CAT_INFO };
- 
-function loadCustomCategories(){
-  const raw = localStorage.getItem('customCategories');
-  if(!raw) return;
-  try{ Object.assign(CAT_INFO, JSON.parse(raw)); } catch(e){}
-}
- 
-function saveCustomCategories(){
-  const extra = {};
-  Object.keys(CAT_INFO).forEach(k=>{ if(!BASE_CAT_INFO[k]) extra[k] = CAT_INFO[k]; });
-  localStorage.setItem('customCategories', JSON.stringify(extra));
-}
- 
-function catBtnHtml(key){
-  const info = CAT_INFO[key];
-  const active = key === selectedCat ? ' active' : '';
-  return `<div class="catBtn${active}" data-cat="${key}"><span>${info.emoji}</span><span>${info.label}</span></div>`;
-}
- 
-function renderCatRow(){
-  let html = '';
-  ['cafe','food','sight'].forEach(k=>{ html += catBtnHtml(k); });
-  Object.keys(CAT_INFO).forEach(k=>{ if(!BASE_CAT_INFO[k]) html += catBtnHtml(k); });
-  html += catBtnHtml('custom');
-  html += `<div class="catBtn addCatBtn" id="addCatBtn"><span>➕</span><span>추가</span></div>`;
-  document.getElementById('catRow').innerHTML = html;
-}
- 
-function addNewCategory(){
-  const label = prompt('새 카테고리 이름을 입력하세요 (예: 쇼핑, 숙소)');
-  if(!label || !label.trim()) return;
-  const emoji = prompt('이 카테고리에 쓸 기본 이모티콘을 입력하세요', '📍');
-  if(!emoji || !emoji.trim()) return;
-  const key = 'cat_' + Date.now();
-  CAT_INFO[key] = { emoji: emoji.trim(), label: label.trim() };
-  saveCustomCategories();
-  selectedCat = key;
-  renderCatRow();
-}
- 
-let places = [];   // {id, name, category, emoji, lat, lng, visited, memo, overlay}
+let CAT_INFO = {};      // { key: {emoji,label} } - 전부 사용자가 추가한 카테고리
+let places = [];        // {id, name, category, emoji, lat, lng, visited, memo, overlay}
 let idSeq = 1;
-let map; // kakao.maps.Map 인스턴스 (SDK 로드 후 생성됨)
+let map;                // kakao.maps.Map 인스턴스 (SDK 로드 후 생성됨)
+let selectedCat = null;  // 현재 선택된(활성) 카테고리
+ 
+function loadCategories(){
+  const raw = localStorage.getItem('categories');
+  if(!raw) return;
+  try{ CAT_INFO = JSON.parse(raw); } catch(e){}
+}
+function saveCategories(){
+  localStorage.setItem('categories', JSON.stringify(CAT_INFO));
+}
  
 function saveToStorage(){
   const data = places.map(p => ({
@@ -289,35 +208,52 @@ function loadFromStorage(){
   let saved;
   try{ saved = JSON.parse(raw); } catch(e){ return; }
   saved.forEach(p=>{
-    const overlay = createOverlay(p.lat, p.lng, p.category, p.visited, p.emoji);
+    const overlay = createOverlay(p.id, p.lat, p.lng, p.category, p.visited, p.emoji);
     places.push({ ...p, overlay });
     if(p.id >= idSeq) idSeq = p.id + 1;
   });
 }
-let selectedCat = 'cafe';
-let awaitingClick = false;
-let pendingData = null;
  
-const nameInput = document.getElementById('nameInput');
-const addBtn = document.getElementById('addBtn');
-const placingNote = document.getElementById('placingNote');
-const hintText = document.getElementById('hintText');
 const listEl = document.getElementById('list');
 const countText = document.getElementById('countText');
-const customEmojiWrap = document.getElementById('customEmojiWrap');
-const emojiInput = document.getElementById('emojiInput');
+const activeCatLabel = document.getElementById('activeCatLabel');
+ 
+function catBtnHtml(key){
+  const info = CAT_INFO[key];
+  const active = key === selectedCat ? ' active' : '';
+  return `<div class="catBtn${active}" data-cat="${key}"><span>${info.emoji}</span><span>${info.label}</span></div>`;
+}
+ 
+function renderCatRow(){
+  let html = '';
+  Object.keys(CAT_INFO).forEach(k => { html += catBtnHtml(k); });
+  html += `<div class="catBtn addCatBtn" id="addCatBtn"><span>➕</span><span>카테고리 추가</span></div>`;
+  document.getElementById('catRow').innerHTML = html;
+}
+ 
+function addNewCategory(){
+  const label = prompt('새 카테고리 이름을 입력하세요 (예: 카페, 서울여행)');
+  if(!label || !label.trim()) return;
+  const emoji = prompt('이 카테고리에 쓸 기본 이모티콘을 입력하세요', '📍');
+  if(!emoji || !emoji.trim()) return;
+  const key = 'cat_' + Date.now();
+  CAT_INFO[key] = { emoji: emoji.trim(), label: label.trim() };
+  saveCategories();
+  selectedCat = key;
+  renderCatRow();
+  renderPlaceList();
+}
  
 document.getElementById('catRow').addEventListener('click', (e)=>{
-  const addBtnEl = e.target.closest('#addCatBtn');
-  if(addBtnEl){ addNewCategory(); return; }
+  if(e.target.closest('#addCatBtn')){ addNewCategory(); return; }
   const btn = e.target.closest('.catBtn');
   if(!btn) return;
   selectedCat = btn.dataset.cat;
-  customEmojiWrap.classList.toggle('show', selectedCat === 'custom');
   renderCatRow();
+  renderPlaceList();
 });
  
-loadCustomCategories();
+loadCategories();
 renderCatRow();
  
 document.getElementById('searchBtn').addEventListener('click', doSearch);
@@ -332,60 +268,52 @@ toggleBtn.addEventListener('click', ()=>{
   setTimeout(()=>{ if(map) map.relayout(); }, 260);
 });
  
-function makePinHtml(category, visited, emoji){
-  const symbol = emoji || (category==='custom' ? '✨' : CAT_INFO[category].emoji);
-  const cls = category === 'custom' ? 'footPin custom' : 'footPin ' + (visited ? 'green' : 'orange');
-  return `<div class="${cls}"><span>${symbol}</span></div>`;
+function makePinElement(id, category, visited, emoji){
+  const info = CAT_INFO[category] || { emoji: '📍' };
+  const symbol = emoji || info.emoji || '📍';
+  const div = document.createElement('div');
+  div.className = 'footPin ' + (visited ? 'green' : 'orange');
+  div.innerHTML = `<span>${symbol}</span>`;
+  div.addEventListener('click', ()=> confirmToggleVisited(id));
+  div.addEventListener('mousedown', (e)=> e.stopPropagation());
+  div.addEventListener('touchstart', (e)=> e.stopPropagation());
+  return div;
 }
  
-function createOverlay(lat, lng, category, visited, emoji){
+function createOverlay(id, lat, lng, category, visited, emoji){
   return new kakao.maps.CustomOverlay({
     position: new kakao.maps.LatLng(lat, lng),
-    content: makePinHtml(category, visited, emoji),
-    yAnchor: category === 'custom' ? 0.5 : 1,
+    content: makePinElement(id, category, visited, emoji),
+    yAnchor: 1,
     xAnchor: 0.5,
     map: map
   });
 }
  
-addBtn.addEventListener('click', ()=>{
-  const name = nameInput.value.trim();
-  if(!name){ alert('장소 이름을 입력해주세요.'); nameInput.focus(); return; }
-  if(selectedCat === 'custom' && !emojiInput.value.trim()){
-    alert('커스텀 핀에 사용할 이모티콘을 입력해주세요.'); emojiInput.focus(); return;
-  }
-  pendingData = { name, category: selectedCat, emoji: emojiInput.value.trim() };
-  awaitingClick = true;
-  placingNote.classList.add('show');
-  addBtn.disabled = true;
-  hintText.textContent = '지도 위 원하는 위치를 클릭하면 핀이 등록됩니다.';
-});
- 
-function finalizePlace(name, category, customEmoji, lat, lng){
-  const defaultEmoji = category === 'custom' ? (customEmoji || '✨') : CAT_INFO[category].emoji;
-  const place = {
-    id: idSeq++, name, category, emoji: defaultEmoji,
-    lat, lng, visited:false, memo:'', overlay:null
-  };
-  place.overlay = createOverlay(lat, lng, category, false, place.emoji);
-  places.push(place);
+function confirmToggleVisited(id){
+  const p = places.find(x=>x.id===id);
+  if(!p) return;
+  const msg = p.visited
+    ? '이 장소를 다시 "미방문"으로 되돌릴까요?'
+    : `"${p.name}"에 다녀오셨나요? 방문완료로 표시할까요?`;
+  if(!window.confirm(msg)) return;
+  p.visited = !p.visited;
+  p.overlay.setContent(makePinElement(p.id, p.category, p.visited, p.emoji));
   saveToStorage();
-  renderList();
-  return place;
+  renderPlaceList();
 }
  
-function onMapClick(mouseEvent){
-  if(!awaitingClick || !pendingData) return;
-  const latlng = mouseEvent.latLng;
-  finalizePlace(pendingData.name, pendingData.category, pendingData.emoji, latlng.getLat(), latlng.getLng());
- 
-  awaitingClick = false;
-  pendingData = null;
-  placingNote.classList.remove('show');
-  addBtn.disabled = false;
-  hintText.textContent = '① 장소 이름과 카테고리를 고른 뒤 → ② 지도를 클릭하거나 검색해서 위치를 지정하세요.';
-  nameInput.value = '';
-  emojiInput.value = '';
+function finalizePlace(name, category, lat, lng){
+  const info = CAT_INFO[category];
+  const place = {
+    id: idSeq++, name, category, emoji: info.emoji,
+    lat, lng, visited:false, memo:'', overlay:null
+  };
+  place.overlay = createOverlay(place.id, lat, lng, category, false, place.emoji);
+  places.push(place);
+  saveToStorage();
+  renderPlaceList();
+  return place;
 }
  
 let ps; // kakao.maps.services.Places 인스턴스 (SDK 로드 후 생성)
@@ -397,6 +325,7 @@ function clearPreviewMarkers(){
 }
  
 function doSearch(){
+  if(!selectedCat){ alert('먼저 카테고리를 선택하거나 추가해주세요.'); return; }
   const keyword = document.getElementById('searchInput').value.trim();
   const resultsEl = document.getElementById('searchResults');
   clearPreviewMarkers();
@@ -415,7 +344,6 @@ function doSearch(){
         <div class="searchAddr">${escapeHtml(d.road_address_name || d.address_name || '')}</div>
       </div>`).join('');
  
-    // 지도 위에도 미리보기 마커를 찍어서, 지도에서 직접 클릭해 선택할 수 있게 함
     const bounds = new kakao.maps.LatLngBounds();
     data.slice(0,6).forEach((d,i)=>{
       const pos = new kakao.maps.LatLng(parseFloat(d.y), parseFloat(d.x));
@@ -431,39 +359,15 @@ function doSearch(){
 function selectSearchResult(i){
   const d = window.__searchData[i];
   if(!d) return;
+  if(!selectedCat){ alert('먼저 카테고리를 선택하거나 추가해주세요.'); return; }
   const lat = parseFloat(d.y);
   const lng = parseFloat(d.x);
-  const name = nameInput.value.trim() || d.place_name;
-  const customEmoji = selectedCat === 'custom' ? emojiInput.value.trim() : null;
-  if(selectedCat === 'custom' && !customEmoji){
-    alert('커스텀 핀에 사용할 이모티콘을 입력해주세요.'); return;
-  }
-  finalizePlace(name, selectedCat, customEmoji, lat, lng);
+  finalizePlace(d.place_name, selectedCat, lat, lng);
   map.setCenter(new kakao.maps.LatLng(lat, lng));
   map.setLevel(4);
   clearPreviewMarkers();
   document.getElementById('searchResults').innerHTML = '';
   document.getElementById('searchInput').value = '';
-  nameInput.value = '';
-  emojiInput.value = '';
-}
- 
-function toggleVisited(id, checked){
-  const p = places.find(x=>x.id===id);
-  if(!p || p.category === 'custom') return;
-  p.visited = checked;
-  p.overlay.setContent(makePinHtml(p.category, p.visited, p.emoji));
-  saveToStorage();
-  renderList();
-}
- 
-function move(id, dir){
-  const idx = places.findIndex(x=>x.id===id);
-  const newIdx = idx + dir;
-  if(newIdx < 0 || newIdx >= places.length) return;
-  [places[idx], places[newIdx]] = [places[newIdx], places[idx]];
-  saveToStorage();
-  renderList();
 }
  
 function removePlace(id){
@@ -472,7 +376,7 @@ function removePlace(id){
   places[idx].overlay.setMap(null);
   places.splice(idx,1);
   saveToStorage();
-  renderList();
+  renderPlaceList();
 }
  
 function editEmoji(id){
@@ -483,9 +387,9 @@ function editEmoji(id){
   const trimmed = next.trim();
   if(!trimmed) return;
   p.emoji = trimmed;
-  p.overlay.setContent(makePinHtml(p.category, p.visited, p.emoji));
+  p.overlay.setContent(makePinElement(p.id, p.category, p.visited, p.emoji));
   saveToStorage();
-  renderList();
+  renderPlaceList();
 }
  
 function editMemo(id, value){
@@ -495,38 +399,32 @@ function editMemo(id, value){
   saveToStorage();
 }
  
-function renderList(){
-  countText.textContent = places.length;
-  if(places.length === 0){
-    listEl.innerHTML = '<div class="emptyState">아직 등록한 장소가 없어요.<br>위에서 장소를 추가하고 지도를 클릭해보세요 🗺️</div>';
+function renderPlaceList(){
+  const label = (selectedCat && CAT_INFO[selectedCat]) ? CAT_INFO[selectedCat].label : '없음';
+  activeCatLabel.textContent = label;
+ 
+  if(!selectedCat){
+    countText.textContent = '0';
+    listEl.innerHTML = '<div class="emptyState">먼저 카테고리를 추가하거나 선택해주세요.</div>';
     return;
   }
-  listEl.innerHTML = places.map((p, i)=>{
-    const label = (CAT_INFO[p.category] && CAT_INFO[p.category].label) || p.category;
-    const disabled = p.category === 'custom' ? 'disabled' : '';
-    return `
+  const filtered = places.filter(p => p.category === selectedCat);
+  countText.textContent = filtered.length;
+  if(filtered.length === 0){
+    listEl.innerHTML = '<div class="emptyState">이 카테고리에 담긴 장소가 없어요.<br>위에서 검색해서 추가해보세요 🔎</div>';
+    return;
+  }
+  listEl.innerHTML = filtered.map(p=>`
     <div class="placeCard ${p.visited ? 'visited':''}">
-      <div class="rankBadge">${i+1}</div>
-      <div class="pinIcon" onclick="editEmoji(${p.id})" title="클릭해서 이모티콘 바꾸기" style="cursor:pointer;">${p.emoji}</div>
+      <div class="pinIcon" onclick="editEmoji(${p.id})" title="클릭해서 이모티콘 바꾸기">${p.emoji}</div>
       <div class="cardBody">
         <div class="cardName">${escapeHtml(p.name)}</div>
-        <div class="cardMeta">${label}${p.visited ? ' · 방문완료' : ''}</div>
+        <div class="cardMeta">${p.visited ? '✅ 방문완료' : '지도에서 핀을 눌러 방문 체크'}</div>
         <textarea class="memoBox" placeholder="메모 남기기 (예: 아메리카노 맛있음)"
           onchange="editMemo(${p.id}, this.value)">${escapeHtml(p.memo || '')}</textarea>
       </div>
-      <div class="cardActions">
-        <div class="orderBtns">
-          <button onclick="move(${p.id},-1)" title="우선순위 위로">▲</button>
-          <button onclick="move(${p.id},1)" title="우선순위 아래로">▼</button>
-        </div>
-        <div class="checkWrap">
-          <input type="checkbox" ${p.visited?'checked':''} ${disabled}
-            onchange="toggleVisited(${p.id}, this.checked)" title="${p.category==='custom' ? '커스텀 핀은 방문 체크가 불가능해요' : '다녀왔으면 체크하세요'}">
-        </div>
-        <button class="delBtn" onclick="removePlace(${p.id})" title="삭제">✕</button>
-      </div>
-    </div>`;
-  }).join('');
+      <button class="delBtn" onclick="removePlace(${p.id})" title="삭제">✕</button>
+    </div>`).join('');
 }
  
 function escapeHtml(str){
@@ -542,14 +440,11 @@ kakao.maps.load(function(){
     level: 7
   });
   map.setZoomable(true);
- 
-  kakao.maps.event.addListener(map, 'click', onMapClick);
   ps = new kakao.maps.services.Places();
  
   loadFromStorage();
-  renderList();
+  renderPlaceList();
  
-  // 내 위치로 지도 이동 시도 (실패해도 무시)
   if(navigator.geolocation){
     navigator.geolocation.getCurrentPosition(
       pos => {
