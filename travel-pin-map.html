@@ -36,6 +36,7 @@
     --text-soft: #7C7264;
     --sb-bg: #FFFFFF;
     --sb-input: #F5F3ED;
+    --sidebar-width: 340px;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;height:100%;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--parchment);color:var(--ink);}
@@ -43,7 +44,7 @@
  
   /* ---------- Sidebar ---------- */
   #sidebar{
-    width:340px;min-width:340px;
+    width:var(--sidebar-width);min-width:220px;max-width:640px;
     background:var(--sb-bg);
     color:var(--ink);
     display:flex;flex-direction:column;
@@ -51,9 +52,18 @@
     border-right:1px solid var(--line);
     transition: width .25s ease, min-width .25s ease;
     overflow:hidden;
+    position:relative;
   }
+  #sidebar.resizing{ transition:none; }
   #sidebar.collapsed{ width:0; min-width:0; border-right:none; }
-  #sidebarInner{ width:340px; height:100%; display:flex; flex-direction:column; flex-shrink:0; }
+  #sidebarInner{ width:var(--sidebar-width); height:100%; display:flex; flex-direction:column; flex-shrink:0; }
+ 
+  #sidebarResizeHandle{
+    position:absolute; top:0; right:-3px; width:6px; height:100%;
+    cursor:col-resize; z-index:500; background:transparent;
+  }
+  #sidebarResizeHandle:hover, #sidebarResizeHandle.active{ background:var(--gold); opacity:0.5; }
+  #sidebar.collapsed #sidebarResizeHandle{ display:none; }
  
   #toggleSidebarBtn{
     position:absolute; top:18px; left:16px; z-index:1000;
@@ -99,7 +109,7 @@
   #countTextWrap{font-size:11px;color:var(--text-soft);flex-shrink:0;margin:8px 0 6px 0;}
  
   /* ---------- Category list ---------- */
-  .catList{display:flex;flex-direction:column;gap:6px;max-height:230px;overflow-y:auto;padding-right:2px;}
+  .catList{display:flex;flex-direction:column;gap:6px;}
   .catListItem{
     border:1px solid var(--line);border-radius:8px;background:var(--sb-input);
   }
@@ -109,6 +119,11 @@
     line-height:1.3;min-height:20px;border-radius:8px;
   }
   .catNameArea{display:flex;align-items:center;gap:6px;cursor:pointer;flex-shrink:0;}
+  .dragHandle{cursor:grab;opacity:0.4;font-size:13px;padding:0 1px;flex-shrink:0;}
+  .dragHandle:hover{opacity:0.9;}
+  .dragHandle:active{cursor:grabbing;}
+  .catListItem.dragOver{border-color:var(--gold);background:#EFE9D8;}
+  .groupHeader.dragOver{background:#EFE9D8;}
   .catListItem.active .catRowLine{color:#fff;}
   .catEmoji{
     font-size:17px;flex-shrink:0;line-height:1;
@@ -189,6 +204,11 @@
   .cardNameArea:hover .cardName{color:var(--gold);}
   .cardName{font-size:14px;font-weight:600;color:var(--ink);word-break:break-word;}
   .cardMeta{font-size:11px;color:var(--text-soft);margin-top:2px;}
+  .cardCatBadges{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+  .miniCatBadge{
+    font-size:10.5px;background:var(--sb-input);border:1px solid var(--line);
+    padding:2px 7px;border-radius:10px;color:var(--text-soft);display:inline-flex;align-items:center;gap:3px;
+  }
   .memoBox{
     width:100%;margin-top:6px;background:var(--sb-input);
     border:1px solid var(--line);border-radius:5px;
@@ -279,6 +299,7 @@
       <div id="list"></div>
     </div>
     </div>
+    <div id="sidebarResizeHandle" title="드래그해서 너비 조절"></div>
   </div>
   <button id="toggleSidebarBtn" title="사이드바 접기/펼치기">☰</button>
   <div id="mapProviderToggle">
@@ -314,6 +335,15 @@
     <div id="moveGroupList" style="margin-bottom:12px;max-height:220px;overflow-y:auto;text-align:left;"></div>
     <button class="modalBtn visitBtn" id="moveGroupConfirmBtn">이동하기</button>
     <button class="modalBtn cancelBtn" id="moveGroupCancelBtn">취소</button>
+  </div>
+</div>
+ 
+<div class="modalOverlay" id="newCatGroupModal">
+  <div class="modalBox">
+    <div class="modalTitle" id="newCatGroupTitle"></div>
+    <div id="newCatGroupList" style="margin-bottom:12px;max-height:220px;overflow-y:auto;text-align:left;"></div>
+    <button class="modalBtn visitBtn" id="newCatGroupConfirmBtn">만들기</button>
+    <button class="modalBtn cancelBtn" id="newCatGroupCancelBtn">취소</button>
   </div>
 </div>
  
@@ -469,6 +499,7 @@ function catRowHtml(key){
   const info = CAT_INFO[key];
   const isDefault = DEFAULT_KEYS.includes(key);
   const active = key === selectedCat ? ' active' : '';
+  const dragHandle = isDefault ? '' : `<span class="dragHandle" draggable="true" data-drag-source="${key}" title="끌어서 순서 변경">⠿</span>`;
   const controls = isDefault
     ? `<div class="catCtrls">
          <button class="catCtrlBtn" data-edit="${key}" title="이름/이모지 수정">✏️</button>
@@ -476,14 +507,13 @@ function catRowHtml(key){
        </div>`
     : `<div class="catCtrls">
          <button class="catCtrlBtn" data-edit="${key}" title="이름/이모지 수정">✏️</button>
-         <button class="catCtrlBtn" data-move="${key}" data-dir="-1" title="위로">▲</button>
-         <button class="catCtrlBtn" data-move="${key}" data-dir="1" title="아래로">▼</button>
          <button class="catCtrlBtn" data-move-group="${key}" title="그룹으로 이동">🔀</button>
          <button class="catCtrlBtn catDel" data-del="${key}" title="삭제">✕</button>
        </div>`;
   const memoInput = isDefault ? '' : `<input type="text" class="catMemoInline" placeholder="메모 남기기" data-catmemo="${key}" value="${escapeHtml(info.memo || '')}">`;
   return `<div class="catListItem${active}" data-cat="${key}">
     <div class="catRowLine">
+      ${dragHandle}
       <div class="catNameArea" data-select="${key}">
         <span class="catEmoji">${info.emoji}</span>
         <span class="catLabel">${escapeHtml(info.label)}</span>
@@ -496,7 +526,8 @@ function catRowHtml(key){
  
 function groupHeaderHtml(gid){
   const g = GROUPS[gid];
-  return `<div class="groupHeader" data-toggle-group="${gid}">
+  return `<div class="groupHeader" data-toggle-group="${gid}" data-group="${gid}">
+    <span class="dragHandle" draggable="true" data-drag-group-source="${gid}" title="끌어서 순서 변경">⠿</span>
     <span class="groupArrow">${g.collapsed ? '▶' : '🔽'}</span>
     <span class="groupName">${escapeHtml(g.name)}</span>
     <div class="groupCtrls">
@@ -508,6 +539,9 @@ function groupHeaderHtml(gid){
  
 function renderCatRow(){
   let html = '';
+  html += `<div class="catListItem addCatRow" id="addGroupBtn"><div class="catRowLine"><div class="catNameArea"><span class="catEmoji">📁</span><span class="catLabel">그룹 추가</span></div></div></div>`;
+  html += `<div class="catListItem addCatRow" id="addCatBtn"><div class="catRowLine"><div class="catNameArea"><span class="catEmoji">➕</span><span class="catLabel">카테고리 추가</span></div></div></div>`;
+ 
   html += catRowHtml('before_visit');
   html += catRowHtml('after_visit');
  
@@ -527,28 +561,120 @@ function renderCatRow(){
  
   const ungrouped = customCategoryOrder.filter(k => CAT_INFO[k] && !CAT_INFO[k].groupId);
   if(ungrouped.length > 0){
-    html += `<div class="groupBlock"><div class="groupHeader ungroupedHeader"><span class="groupArrow"> </span><span class="groupName">미분류</span></div><div class="groupChildren">`;
+    html += `<div class="groupBlock" data-group=""><div class="groupHeader ungroupedHeader" data-group=""><span class="groupArrow"> </span><span class="groupName">미분류</span></div><div class="groupChildren">`;
     ungrouped.forEach(k=>{ html += catRowHtml(k); });
     html += `</div></div>`;
   }
  
-  html += `<div class="catListItem addCatRow" id="addCatBtn"><div class="catRowLine"><div class="catNameArea"><span class="catEmoji">➕</span><span class="catLabel">카테고리 추가</span></div></div></div>`;
-  html += `<div class="catListItem addCatRow" id="addGroupBtn"><div class="catRowLine"><div class="catNameArea"><span class="catEmoji">📁</span><span class="catLabel">그룹 추가</span></div></div></div>`;
   document.getElementById('catRow').innerHTML = html;
 }
  
+/* ---------- 드래그로 순서 변경 ---------- */
+let dragState = null; // { type:'category'|'group', key }
+const catRowEl = document.getElementById('catRow');
+ 
+catRowEl.addEventListener('dragstart', (e)=>{
+  const catSrc = e.target.closest('[data-drag-source]');
+  if(catSrc){ dragState = { type:'category', key: catSrc.dataset.dragSource }; return; }
+  const grpSrc = e.target.closest('[data-drag-group-source]');
+  if(grpSrc){ dragState = { type:'group', key: grpSrc.dataset.dragGroupSource }; return; }
+});
+catRowEl.addEventListener('dragover', (e)=>{
+  if(!dragState) return;
+  if(dragState.type === 'category' && e.target.closest('.catListItem[data-cat]')) e.preventDefault();
+  if(dragState.type === 'group' && e.target.closest('.groupHeader[data-group]')) e.preventDefault();
+});
+catRowEl.addEventListener('drop', (e)=>{
+  if(!dragState) return;
+  e.preventDefault();
+  if(dragState.type === 'category'){
+    const targetEl = e.target.closest('.catListItem[data-cat]');
+    if(targetEl){
+      const targetKey = targetEl.dataset.cat;
+      const draggedInfo = CAT_INFO[dragState.key];
+      const targetInfo = CAT_INFO[targetKey];
+      if(targetKey !== dragState.key && draggedInfo && targetInfo && (draggedInfo.groupId || null) === (targetInfo.groupId || null)){
+        reorderCategoryWithin(draggedInfo.groupId || null, dragState.key, targetKey);
+      }
+    }
+  } else if(dragState.type === 'group'){
+    const targetEl = e.target.closest('.groupHeader[data-group]');
+    if(targetEl && targetEl.dataset.group && targetEl.dataset.group !== dragState.key){
+      reorderGroups(dragState.key, targetEl.dataset.group);
+    }
+  }
+  dragState = null;
+  renderCatRow();
+});
+catRowEl.addEventListener('dragend', ()=>{ dragState = null; });
+ 
+function reorderCategoryWithin(groupId, draggedKey, targetKey){
+  const bucketPred = k => CAT_INFO[k] && (CAT_INFO[k].groupId || null) === groupId;
+  const bucketKeys = customCategoryOrder.filter(bucketPred);
+  const filtered = bucketKeys.filter(k => k !== draggedKey);
+  const idx = filtered.indexOf(targetKey);
+  const insertIdx = idx === -1 ? filtered.length : idx;
+  filtered.splice(insertIdx, 0, draggedKey);
+  let bi = 0;
+  customCategoryOrder = customCategoryOrder.map(k => bucketPred(k) ? filtered[bi++] : k);
+  saveCategoryOrder();
+  recomputeAllEmojis();
+  applyMapFilter();
+}
+ 
+function reorderGroups(draggedGid, targetGid){
+  const filtered = groupOrder.filter(g => g !== draggedGid);
+  const idx = filtered.indexOf(targetGid);
+  const insertIdx = idx === -1 ? filtered.length : idx;
+  filtered.splice(insertIdx, 0, draggedGid);
+  groupOrder = filtered;
+  saveGroupOrder();
+}
+ 
+/* ---------- 카테고리 추가 (그룹 선택 포함) ---------- */
+let pendingNewCategory = null;
 function addNewCategory(){
   const label = prompt('새 카테고리 이름을 입력하세요 (예: 카페, 서울여행)');
   if(!label || !label.trim()) return;
   const emoji = prompt('이 카테고리에 쓸 기본 이모티콘을 입력하세요', '📍');
   if(!emoji || !emoji.trim()) return;
+  pendingNewCategory = { label: label.trim(), emoji: emoji.trim() };
+  openNewCategoryGroupModal();
+}
+ 
+function openNewCategoryGroupModal(){
+  document.getElementById('newCatGroupTitle').textContent = `"${pendingNewCategory.label}" 을(를) 넣을 그룹`;
+  let html = `<label class="catPickRow"><input type="radio" name="newCatGroup" value="" checked><span>📂 그룹 없음</span></label>`;
+  groupOrder.forEach(gid=>{
+    if(!GROUPS[gid]) return;
+    html += `<label class="catPickRow"><input type="radio" name="newCatGroup" value="${gid}"><span>${escapeHtml(GROUPS[gid].name)}</span></label>`;
+  });
+  if(groupOrder.length === 0){
+    html += `<div class="emptyState" style="padding:6px 0;">아직 만든 그룹이 없어요.</div>`;
+  }
+  document.getElementById('newCatGroupList').innerHTML = html;
+  document.getElementById('newCatGroupModal').style.display = 'flex';
+}
+function closeNewCategoryGroupModal(){
+  document.getElementById('newCatGroupModal').style.display = 'none';
+  pendingNewCategory = null;
+}
+document.getElementById('newCatGroupConfirmBtn').addEventListener('click', ()=>{
+  if(!pendingNewCategory) return;
+  const selected = document.querySelector('input[name="newCatGroup"]:checked');
+  const gid = (selected && selected.value) ? selected.value : null;
   const key = 'cat_' + Date.now();
-  CAT_INFO[key] = { emoji: emoji.trim(), label: label.trim(), memo: '', groupId: null };
+  CAT_INFO[key] = { emoji: pendingNewCategory.emoji, label: pendingNewCategory.label, memo: '', groupId: gid };
   customCategoryOrder.push(key);
   saveCategories();
   saveCategoryOrder();
+  closeNewCategoryGroupModal();
   selectCategory(key);
-}
+});
+document.getElementById('newCatGroupCancelBtn').addEventListener('click', closeNewCategoryGroupModal);
+document.getElementById('newCatGroupModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'newCatGroupModal') closeNewCategoryGroupModal();
+});
  
 function editCategory(key){
   const info = CAT_INFO[key];
@@ -743,8 +869,61 @@ const toggleBtn = document.getElementById('toggleSidebarBtn');
 const sidebarEl = document.getElementById('sidebar');
 toggleBtn.addEventListener('click', ()=>{
   sidebarEl.classList.toggle('collapsed');
-  setTimeout(()=>{ if(map) map.relayout(); }, 260);
+  setTimeout(()=>{ if(map) map.relayout(); if(googleMap) google.maps.event.trigger(googleMap, 'resize'); }, 260);
 });
+ 
+/* ---------- 사이드바 너비 드래그 조절 ---------- */
+(function initSidebarResize(){
+  const handle = document.getElementById('sidebarResizeHandle');
+  const MIN_W = 260, MAX_W = 560;
+ 
+  const savedWidth = localStorage.getItem('sidebarWidth');
+  if(savedWidth){
+    document.documentElement.style.setProperty('--sidebar-width', savedWidth + 'px');
+  }
+ 
+  let dragging = false;
+ 
+  function onMove(clientX){
+    let w = clientX;
+    if(w < MIN_W) w = MIN_W;
+    if(w > MAX_W) w = MAX_W;
+    document.documentElement.style.setProperty('--sidebar-width', w + 'px');
+  }
+  function endDrag(){
+    if(!dragging) return;
+    dragging = false;
+    sidebarEl.classList.remove('resizing');
+    handle.classList.remove('active');
+    const finalWidth = getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width').trim();
+    localStorage.setItem('sidebarWidth', parseInt(finalWidth, 10));
+    if(map) map.relayout();
+    if(googleMap) google.maps.event.trigger(googleMap, 'resize');
+  }
+ 
+  handle.addEventListener('mousedown', (e)=>{
+    dragging = true;
+    sidebarEl.classList.add('resizing');
+    handle.classList.add('active');
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e)=>{
+    if(!dragging) return;
+    onMove(e.clientX);
+  });
+  document.addEventListener('mouseup', endDrag);
+ 
+  handle.addEventListener('touchstart', (e)=>{
+    dragging = true;
+    sidebarEl.classList.add('resizing');
+    handle.classList.add('active');
+  }, { passive:true });
+  document.addEventListener('touchmove', (e)=>{
+    if(!dragging) return;
+    onMove(e.touches[0].clientX);
+  }, { passive:true });
+  document.addEventListener('touchend', endDrag);
+})();
  
 /* ---------- 지도 핀 ---------- */
 function getDisplayEmoji(categories){
@@ -1207,7 +1386,11 @@ function renderPlaceList(){
       : '<div class="emptyState">이 카테고리에 담긴 장소가 없어요.<br>목록으로 돌아가 검색해서 추가해보세요 🔎</div>';
     return;
   }
-  listEl.innerHTML = filtered.map(p=>`
+  listEl.innerHTML = filtered.map(p=>{
+    const badges = p.categories
+      .map(ck => CAT_INFO[ck] ? `<span class="miniCatBadge">${CAT_INFO[ck].emoji} ${escapeHtml(CAT_INFO[ck].label)}</span>` : '')
+      .join('');
+    return `
     <div class="placeCard ${p.visited ? 'visited':''}">
       <div class="pinIcon" onclick="openPinAction(${p.id})" title="방문/삭제">${p.emoji}</div>
       <div class="cardBody">
@@ -1215,11 +1398,13 @@ function renderPlaceList(){
           <div class="cardName">${escapeHtml(p.name)}</div>
           <div class="cardMeta">${p.visited ? '✅ ' : ''}${escapeHtml(p.address || '주소 정보 없음')}</div>
         </div>
+        <div class="cardCatBadges">${badges}</div>
         <textarea class="memoBox" placeholder="메모 남기기"
           onchange="editMemo(${p.id}, this.value)">${escapeHtml(p.memo || '')}</textarea>
       </div>
       <button class="delBtn" onclick="removePlace(${p.id})" title="삭제">✕</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
  
 function escapeHtml(str){
