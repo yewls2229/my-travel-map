@@ -617,6 +617,7 @@ function updateMarkerVisuals(p){
 function openPinAction(id){
   const p = places.find(x=>x.id===id);
   if(!p) return;
+  navigateToPlace(id);
   pinActionTargetId = id;
   document.getElementById('modalTitle').textContent = p.name;
   document.getElementById('modalVisitBtn').textContent = p.visited ? '미방문으로 되돌리기' : '✓ 방문완료로 표시';
@@ -737,24 +738,33 @@ function doSearchKakao(keyword, resultsEl){
   });
 }
  
-function doSearchGoogle(keyword, resultsEl){
+async function doSearchGoogle(keyword, resultsEl){
   if(!window.__gmapsReady || !googleMap){
     alert('구글 지도가 아직 준비 중이에요. 잠시 후 다시 시도해주세요.');
     return;
   }
-  const service = new google.maps.places.PlacesService(googleMap);
-  service.textSearch({ query: keyword }, (results, status)=>{
-    if(status !== google.maps.places.PlacesServiceStatus.OK || !results || !results.length){
+  resultsEl.innerHTML = '<div class="searchEmpty">검색 중...</div>';
+  try{
+    const { Place } = await google.maps.importLibrary('places');
+    const request = {
+      textQuery: keyword,
+      fields: ['displayName', 'location', 'formattedAddress'],
+      locationBias: googleMap.getCenter(),
+      maxResultCount: 6
+    };
+    const { places: results } = await Place.searchByText(request);
+ 
+    if(!results || !results.length){
       resultsEl.innerHTML = '<div class="searchEmpty">검색 결과가 없어요.</div>';
       window.__searchData = [];
       return;
     }
-    const mapped = results.slice(0,6).map(r=>({
-      place_name: r.name,
-      road_address_name: r.formatted_address || '',
-      address_name: r.formatted_address || '',
-      y: r.geometry.location.lat(),
-      x: r.geometry.location.lng()
+    const mapped = results.map(r=>({
+      place_name: r.displayName,
+      road_address_name: r.formattedAddress || '',
+      address_name: r.formattedAddress || '',
+      y: r.location.lat(),
+      x: r.location.lng()
     }));
     window.__searchData = mapped;
     resultsEl.innerHTML = mapped.map((d,i)=>`
@@ -772,7 +782,10 @@ function doSearchGoogle(keyword, resultsEl){
       bounds.extend(pos);
     });
     googleMap.fitBounds(bounds);
-  });
+  } catch(err){
+    resultsEl.innerHTML = '<div class="searchEmpty">검색 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.</div>';
+    window.__searchData = [];
+  }
 }
  
 function selectSearchResult(i){
@@ -948,6 +961,20 @@ function switchProvider(provider){
   if(provider === 'kr'){
     setTimeout(()=>{ if(map) map.relayout(); }, 50);
   } else {
+    if(!window.__gmapsReady){
+      document.getElementById('mapGoogle').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#7C7264;font-size:13px;">🌍 구글 지도를 불러오는 중이에요...</div>';
+      onGoogleMapsReady(()=>{
+        if(activeProvider === 'intl'){
+          document.getElementById('mapGoogle').innerHTML = '';
+          initGoogleMapInstance();
+          setTimeout(()=>{ if(googleMap) google.maps.event.trigger(googleMap, 'resize'); }, 50);
+        }
+      });
+      return;
+    }
+    if(!googleMap){
+      initGoogleMapInstance();
+    }
     ensureGoogleMarkers();
     setTimeout(()=>{ if(googleMap) google.maps.event.trigger(googleMap, 'resize'); }, 50);
   }
@@ -966,7 +993,7 @@ function initGoogleMapInstance(){
   });
   ensureGoogleMarkers();
 }
-onGoogleMapsReady(initGoogleMapInstance);
+onGoogleMapsReady(function(){ /* SDK만 준비, 실제 지도 생성은 '해외' 탭을 처음 누를 때 */ });
  
 kakao.maps.load(function(){
   const container = document.getElementById('map');
