@@ -75,25 +75,28 @@
   }
   #brand p{margin:0;font-size:12.5px;color:var(--text-soft);line-height:1.5;}
  
-  #addForm{
+  #browseView{
     padding:14px 20px;
-    border-bottom:1px solid var(--line);
     display:flex;flex-direction:column;gap:8px;
-    flex-shrink:0;
+    flex:1;overflow-y:auto;
   }
-  #addForm .hint{
-    font-size:12px;color:var(--text-soft);background:var(--sb-input);
-    padding:8px 10px;border-radius:6px;line-height:1.5;
+ 
+  /* ---------- Detail view (카테고리 상세) ---------- */
+  #detailView{
+    display:none;flex-direction:column;flex:1;overflow:hidden;
+    padding:14px 20px 0 20px;
   }
-  #addForm input[type=text]{
-    background:var(--sb-input);
-    border:1px solid var(--line);
-    color:var(--ink);
-    padding:9px 10px;border-radius:6px;font-size:13.5px;outline:none;
-    width:100%;
+  #detailBreadcrumb{flex-shrink:0;margin-bottom:10px;}
+  .breadcrumbBack{
+    font-size:12px;color:var(--text-soft);cursor:pointer;padding:2px 0;
   }
-  #addForm input[type=text]::placeholder{color:#a8a091;}
-  #addForm input[type=text]:focus{border-color:var(--gold);}
+  .breadcrumbBack:hover{color:var(--gold);}
+  .breadcrumbCurrent{
+    font-family:Georgia,'Times New Roman',serif;
+    font-size:20px;font-weight:600;color:var(--ink);margin-top:2px;
+    display:flex;align-items:center;gap:8px;
+  }
+  #countTextWrap{font-size:11px;color:var(--text-soft);flex-shrink:0;margin:8px 0 6px 0;}
  
   /* ---------- Category list ---------- */
   .catList{display:flex;flex-direction:column;gap:6px;max-height:230px;overflow-y:auto;padding-right:2px;}
@@ -143,7 +146,12 @@
   .addCatRow .catNameArea:hover{color:var(--ink);}
  
   .searchRow{display:flex;gap:6px;}
-  .searchRow input{flex:1;}
+  .searchRow input{
+    flex:1;background:var(--sb-input);border:1px solid var(--line);
+    color:var(--ink);padding:9px 10px;border-radius:6px;font-size:13.5px;outline:none;
+  }
+  .searchRow input::placeholder{color:#a8a091;}
+  .searchRow input:focus{border-color:var(--gold);}
   .searchRow button{
     background:var(--gold);border:none;color:#fff;
     border-radius:6px;padding:0 12px;cursor:pointer;font-size:14px;
@@ -160,19 +168,14 @@
   .searchEmpty{font-size:12px;color:var(--text-soft);padding:4px 2px;}
  
   /* ---------- List ---------- */
-  #listHeader{
-    padding:12px 20px 8px 20px;font-size:12px;
-    color:var(--text-soft);flex-shrink:0;
-    display:flex;flex-direction:column;gap:8px;
-  }
-  #listHeader b{color:var(--ink);}
   #localFilterInput{
     width:100%;background:var(--sb-input);border:1px solid var(--line);
     color:var(--ink);padding:7px 9px;border-radius:6px;font-size:12.5px;outline:none;
+    flex-shrink:0;
   }
   #localFilterInput::placeholder{color:#a8a091;}
   #localFilterInput:focus{border-color:var(--gold);}
-  #list{flex:1;overflow-y:auto;padding:4px 12px 20px 12px;}
+  #list{flex:1;overflow-y:auto;padding:4px 0 20px 0;}
   .placeCard{
     background:#FCFBF8;
     border:1px solid var(--line);
@@ -260,22 +263,21 @@
       <p>카테고리를 만들고, 장소를 검색해서 담아보세요. 지도의 핀을 누르면 방문/삭제를 고를 수 있어요.</p>
     </div>
  
-    <div id="addForm">
-      <div class="hint" id="hintText">① 카테고리 만들기 → ② 장소 검색 → ③ 담을 카테고리 체크</div>
-      <div class="catList" id="catRow"></div>
- 
+    <div id="browseView">
       <div class="searchRow">
         <input type="text" id="searchInput" placeholder="🔎 장소 검색 (예: 서울역)" />
         <button id="searchBtn" type="button">검색</button>
       </div>
       <div id="searchResults"></div>
+      <div class="catList" id="catRow"></div>
     </div>
  
-    <div id="listHeader">
-      <div>선택한 카테고리: <b id="activeCatLabel">없음</b> · <span id="countText">0</span>개</div>
+    <div id="detailView">
+      <div id="detailBreadcrumb"></div>
       <input type="text" id="localFilterInput" placeholder="🔍 이 카테고리에서 검색" />
+      <div id="countTextWrap"><span id="countText">0</span>개</div>
+      <div id="list"></div>
     </div>
-    <div id="list"></div>
     </div>
   </div>
   <button id="toggleSidebarBtn" title="사이드바 접기/펼치기">☰</button>
@@ -339,6 +341,7 @@ let map;
 let googleMap;
 let activeProvider = 'kr'; // 'kr' = 카카오맵, 'intl' = 구글맵
 let selectedCat = null;        // 목록 필터링용 (보기 전용)
+let sidebarView = 'browse';    // 'browse' | 'detail'
 let pinActionTargetId = null;
 let pendingSearchResult = null;
  
@@ -459,7 +462,6 @@ function loadFromStorage(){
  
 const listEl = document.getElementById('list');
 const countText = document.getElementById('countText');
-const activeCatLabel = document.getElementById('activeCatLabel');
 const localFilterInput = document.getElementById('localFilterInput');
  
 /* ---------- 카테고리 UI ---------- */
@@ -468,8 +470,12 @@ function catRowHtml(key){
   const isDefault = DEFAULT_KEYS.includes(key);
   const active = key === selectedCat ? ' active' : '';
   const controls = isDefault
-    ? `<span class="catBadge">기본</span>`
+    ? `<div class="catCtrls">
+         <button class="catCtrlBtn" data-edit="${key}" title="이름/이모지 수정">✏️</button>
+         <span class="catBadge">기본</span>
+       </div>`
     : `<div class="catCtrls">
+         <button class="catCtrlBtn" data-edit="${key}" title="이름/이모지 수정">✏️</button>
          <button class="catCtrlBtn" data-move="${key}" data-dir="-1" title="위로">▲</button>
          <button class="catCtrlBtn" data-move="${key}" data-dir="1" title="아래로">▼</button>
          <button class="catCtrlBtn" data-move-group="${key}" title="그룹으로 이동">🔀</button>
@@ -542,6 +548,27 @@ function addNewCategory(){
   saveCategories();
   saveCategoryOrder();
   selectCategory(key);
+}
+ 
+function editCategory(key){
+  const info = CAT_INFO[key];
+  if(!info) return;
+  const newLabel = prompt('카테고리 이름을 수정하세요', info.label);
+  if(newLabel === null || !newLabel.trim()) return;
+  const newEmoji = prompt('이모티콘을 수정하세요', info.emoji);
+  if(newEmoji === null || !newEmoji.trim()) return;
+  info.label = newLabel.trim();
+  info.emoji = newEmoji.trim();
+  saveCategories();
+  recomputeAllEmojis();
+  renderCatRow();
+  renderPlaceList();
+  applyMapFilter();
+}
+ 
+function recomputeAllEmojis(){
+  places.forEach(p=>{ p.emoji = getDisplayEmoji(p.categories); });
+  saveToStorage();
 }
  
 function addNewGroup(){
@@ -650,7 +677,7 @@ function moveCategory(key, dir){
   [customCategoryOrder[idx], customCategoryOrder[newIdx]] = [customCategoryOrder[newIdx], customCategoryOrder[idx]];
   saveCategoryOrder();
   renderCatRow();
-  saveToStorage();
+  recomputeAllEmojis();
   applyMapFilter();
 }
  
@@ -668,9 +695,9 @@ function refreshAllPinEmojis(){
 }
  
 function selectCategory(key){
-  selectedCat = (selectedCat === key) ? null : key;
+  selectedCat = key;
   localFilterInput.value = '';
-  renderCatRow();
+  showDetailView();
   renderPlaceList();
   applyMapFilter();
 }
@@ -684,6 +711,8 @@ function editCategoryMemo(key, value){
 document.getElementById('catRow').addEventListener('click', (e)=>{
   if(e.target.closest('#addCatBtn')){ addNewCategory(); return; }
   if(e.target.closest('#addGroupBtn')){ addNewGroup(); return; }
+  const editEl = e.target.closest('[data-edit]');
+  if(editEl){ editCategory(editEl.dataset.edit); return; }
   const renameGroupEl = e.target.closest('[data-rename-group]');
   if(renameGroupEl){ renameGroup(renameGroupEl.dataset.renameGroup); return; }
   const delGroupEl = e.target.closest('[data-del-group]');
@@ -1126,13 +1155,45 @@ function editMemo(id, value){
 }
  
 /* ---------- 목록 렌더링 ---------- */
+function renderBreadcrumb(){
+  const breadcrumbEl = document.getElementById('detailBreadcrumb');
+  if(!selectedCat || !CAT_INFO[selectedCat]){ breadcrumbEl.innerHTML = ''; return; }
+  const info = CAT_INFO[selectedCat];
+  let groupName = '목록';
+  if(DEFAULT_KEYS.includes(selectedCat)) groupName = '기본';
+  else if(info.groupId && GROUPS[info.groupId]) groupName = GROUPS[info.groupId].name;
+  else groupName = '미분류';
+  breadcrumbEl.innerHTML = `
+    <div class="breadcrumbBack" id="breadcrumbBackBtn">← ${escapeHtml(groupName)}</div>
+    <div class="breadcrumbCurrent"><span class="catEmoji">${info.emoji}</span>${escapeHtml(info.label)}</div>
+  `;
+}
+document.getElementById('detailView').addEventListener('click', (e)=>{
+  if(e.target.closest('#breadcrumbBackBtn')) goBackToBrowse();
+});
+ 
+function showBrowseView(){
+  sidebarView = 'browse';
+  document.getElementById('browseView').style.display = 'flex';
+  document.getElementById('detailView').style.display = 'none';
+}
+function showDetailView(){
+  sidebarView = 'detail';
+  document.getElementById('browseView').style.display = 'none';
+  document.getElementById('detailView').style.display = 'flex';
+}
+function goBackToBrowse(){
+  selectedCat = null;
+  showBrowseView();
+  applyMapFilter();
+}
+ 
 function renderPlaceList(){
-  const label = (selectedCat && CAT_INFO[selectedCat]) ? CAT_INFO[selectedCat].label : '없음';
-  activeCatLabel.textContent = label;
+  renderBreadcrumb();
  
   if(!selectedCat){
     countText.textContent = '0';
-    listEl.innerHTML = '<div class="emptyState">먼저 카테고리를 추가하거나 선택해주세요.</div>';
+    listEl.innerHTML = '';
     return;
   }
   const query = (localFilterInput.value || '').trim().toLowerCase();
@@ -1143,7 +1204,7 @@ function renderPlaceList(){
   if(filtered.length === 0){
     listEl.innerHTML = query
       ? '<div class="emptyState">검색과 일치하는 장소가 없어요.</div>'
-      : '<div class="emptyState">이 카테고리에 담긴 장소가 없어요.<br>위에서 검색해서 추가해보세요 🔎</div>';
+      : '<div class="emptyState">이 카테고리에 담긴 장소가 없어요.<br>목록으로 돌아가 검색해서 추가해보세요 🔎</div>';
     return;
   }
   listEl.innerHTML = filtered.map(p=>`
@@ -1168,8 +1229,7 @@ function escapeHtml(str){
 }
  
 async function initData(){
-  const hintEl = document.getElementById('hintText');
-  hintEl.textContent = '☁️ 데이터 불러오는 중...';
+  document.getElementById('catRow').innerHTML = '<div class="emptyState" style="padding:20px 0;">☁️ 데이터 불러오는 중...</div>';
  
   let cloud = null;
   try{ cloud = await fetchCloudState(); } catch(e){ cloud = null; }
@@ -1208,7 +1268,6 @@ async function initData(){
     queueCloudSync();
   }
  
-  hintEl.textContent = '① 카테고리 만들기 → ② 장소 검색 → ③ 담을 카테고리 체크';
   renderCatRow();
   renderPlaceList();
   applyMapFilter();
