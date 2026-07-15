@@ -378,6 +378,7 @@ let map;
 let googleMap;
 let activeProvider = 'kr'; // 'kr' = 카카오맵, 'intl' = 구글맵
 let selectedCat = null;        // 목록 필터링용 (보기 전용)
+let selectedGroup = null;      // 펼쳐진 그룹 단위 지도 필터
 let sidebarView = 'browse';    // 'browse' | 'detail'
 let pinActionTargetId = null;
 let pendingSearchResult = null;
@@ -719,7 +720,16 @@ function toggleGroupCollapse(gid){
   if(!GROUPS[gid]) return;
   GROUPS[gid].collapsed = !GROUPS[gid].collapsed;
   saveGroups();
+  if(!GROUPS[gid].collapsed){
+    // 방금 펼쳐짐 → 이 그룹에 담긴 모든 장소를 지도에 표시
+    selectedGroup = gid;
+    selectedCat = null;
+  } else if(selectedGroup === gid){
+    // 방금 접혔고, 그게 현재 지도 필터였다면 해제(전체 보기로)
+    selectedGroup = null;
+  }
   renderCatRow();
+  applyMapFilter();
 }
  
 function renameGroup(gid){
@@ -742,7 +752,9 @@ function deleteGroup(gid){
   saveCategories();
   saveGroups();
   saveGroupOrder();
+  if(selectedGroup === gid) selectedGroup = null;
   renderCatRow();
+  applyMapFilter();
 }
  
 /* ---------- 카테고리를 다른 그룹으로 이동 ---------- */
@@ -828,7 +840,10 @@ function refreshAllPinEmojis(){
 }
  
 function selectCategory(key){
+  const info = CAT_INFO[key];
   selectedCat = key;
+  // 뒤로가기 시 이 카테고리의 상위 그룹이 펼쳐진 상태였다면 그 그룹 필터로 복원되도록 기억
+  selectedGroup = (info && info.groupId) ? info.groupId : null;
   localFilterInput.value = '';
   showDetailView();
   renderPlaceList();
@@ -1013,11 +1028,18 @@ function updateMarkerVisuals(p){
  
 // 선택된 카테고리에 따라 지도에 보이는 핀과 이모지를 다르게 표시
 function applyMapFilter(){
+  const groupCatKeys = selectedGroup
+    ? customCategoryOrder.filter(k => CAT_INFO[k] && CAT_INFO[k].groupId === selectedGroup)
+    : null;
+ 
   places.forEach(p=>{
     let visible, emojiToShow;
     if(selectedCat){
       visible = p.categories.includes(selectedCat);
       emojiToShow = (CAT_INFO[selectedCat] && CAT_INFO[selectedCat].emoji) || p.emoji;
+    } else if(selectedGroup){
+      visible = p.categories.some(c => groupCatKeys.includes(c));
+      emojiToShow = getDisplayEmoji(p.categories);
     } else {
       visible = true;
       emojiToShow = getDisplayEmoji(p.categories);
