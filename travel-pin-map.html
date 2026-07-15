@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TraveLog</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1F3D3A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TraveLog">
 <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=bbcf39840e4999a45a371a2c7a7bf4d5&autoload=false&libraries=services"></script>
 <style>
   :root{
@@ -20,7 +27,7 @@
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;height:100%;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--parchment);color:var(--ink);}
   #app{display:flex;height:100vh;overflow:hidden;position:relative;}
- 
+
   /* ---------- Sidebar ---------- */
   #sidebar{
     width:340px;min-width:340px;
@@ -34,7 +41,7 @@
   }
   #sidebar.collapsed{ width:0; min-width:0; border-right:none; }
   #sidebarInner{ width:340px; height:100%; display:flex; flex-direction:column; flex-shrink:0; }
- 
+
   #toggleSidebarBtn{
     position:absolute; top:18px; left:16px; z-index:1000;
     width:32px;height:32px;border-radius:50%;
@@ -54,7 +61,7 @@
     font-size:26px;margin:0 0 4px 0;letter-spacing:0.5px;font-weight:600;color:var(--ink);
   }
   #brand p{margin:0;font-size:12.5px;color:var(--text-soft);line-height:1.5;}
- 
+
   #addForm{
     padding:14px 20px;
     border-bottom:1px solid var(--line);
@@ -74,7 +81,7 @@
   }
   #addForm input[type=text]::placeholder{color:#a8a091;}
   #addForm input[type=text]:focus{border-color:var(--gold);}
- 
+
   /* ---------- Category list ---------- */
   .catList{display:flex;flex-direction:column;gap:6px;max-height:230px;overflow-y:auto;padding-right:2px;}
   .catListItem{
@@ -108,7 +115,7 @@
   .addCatRow .catMain{color:var(--text-soft);border-style:dashed;}
   .addCatRow{border-style:dashed;}
   .addCatRow .catMain:hover{color:var(--ink);}
- 
+
   .searchRow{display:flex;gap:6px;}
   .searchRow input{flex:1;}
   .searchRow button{
@@ -125,7 +132,7 @@
   .searchName{font-size:12.5px;font-weight:600;}
   .searchAddr{font-size:10.5px;color:var(--text-soft);margin-top:1px;}
   .searchEmpty{font-size:12px;color:var(--text-soft);padding:4px 2px;}
- 
+
   /* ---------- List ---------- */
   #listHeader{
     padding:12px 20px 8px 20px;font-size:12px;
@@ -164,7 +171,7 @@
   .delBtn{background:none;border:none;color:#b08a72;cursor:pointer;font-size:14px;flex-shrink:0;}
   .delBtn:hover{color:#E2723A;}
   .emptyState{color:var(--text-soft);font-size:12.5px;text-align:center;padding:30px 10px;line-height:1.6;}
- 
+
   /* ---------- Map ---------- */
   #map{flex:1;height:100%;}
   .footPin{
@@ -178,7 +185,7 @@
   .footPin span{transform:rotate(45deg);font-size:14px;font-family:'Segoe UI Emoji','Noto Color Emoji','Apple Color Emoji',sans-serif;}
   .footPin.orange{background:var(--pin-yellow);}
   .footPin.green{background:var(--green);}
- 
+
   /* ---------- Modals ---------- */
   .modalOverlay{
     display:none;position:fixed;inset:0;background:rgba(31,61,58,0.45);
@@ -211,18 +218,18 @@
       <h1>TraveLog</h1>
       <p>카테고리를 만들고, 장소를 검색해서 담아보세요. 지도의 핀을 누르면 방문/삭제를 고를 수 있어요.</p>
     </div>
- 
+
     <div id="addForm">
       <div class="hint" id="hintText">① 카테고리 만들기 → ② 장소 검색 → ③ 담을 카테고리 체크</div>
       <div class="catList" id="catRow"></div>
- 
+
       <div class="searchRow">
         <input type="text" id="searchInput" placeholder="🔎 장소 검색 (예: 서울역)" />
         <button id="searchBtn" type="button">검색</button>
       </div>
       <div id="searchResults"></div>
     </div>
- 
+
     <div id="listHeader">
       <div>선택한 카테고리: <b id="activeCatLabel">없음</b> · <span id="countText">0</span>개</div>
       <input type="text" id="localFilterInput" placeholder="🔍 이 카테고리에서 검색" />
@@ -233,7 +240,7 @@
   <button id="toggleSidebarBtn" title="사이드바 접기/펼치기">☰</button>
   <div id="map"></div>
 </div>
- 
+
 <div class="modalOverlay" id="pinActionModal">
   <div class="modalBox">
     <div class="modalTitle" id="modalTitle"></div>
@@ -242,7 +249,7 @@
     <button class="modalBtn cancelBtn" id="modalCancelBtn">취소</button>
   </div>
 </div>
- 
+
 <div class="modalOverlay" id="catPickModal">
   <div class="modalBox">
     <div class="modalTitle" id="catPickTitle"></div>
@@ -251,11 +258,11 @@
     <button class="modalBtn cancelBtn" id="catPickCancelBtn">취소</button>
   </div>
 </div>
- 
+
 <script>
 const SUPABASE_URL = 'https://hladgocnwkdobcsxcmqk.supabase.co';
 const SUPABASE_KEY = 'sb_publishable__FWBn_--TTx2JgOtuwqyEQ_cnyqW6tw';
- 
+
 const DEFAULT_KEYS = ['before_visit','after_visit'];
 let CAT_INFO = {};             // { key: {emoji,label,memo} }
 let customCategoryOrder = [];  // 커스텀 카테고리 우선순위 (지도 이모지 결정용)
@@ -265,14 +272,14 @@ let map;
 let selectedCat = null;        // 목록 필터링용 (보기 전용)
 let pinActionTargetId = null;
 let pendingSearchResult = null;
- 
+
 /* ---------- 클라우드(Supabase) 동기화 ---------- */
 let cloudSyncTimer = null;
 function queueCloudSync(){
   clearTimeout(cloudSyncTimer);
   cloudSyncTimer = setTimeout(()=>{ pushCloudState().catch(()=>{}); }, 700);
 }
- 
+
 async function pushCloudState(){
   const state = {
     categories: CAT_INFO,
@@ -295,7 +302,7 @@ async function pushCloudState(){
   });
   return res.ok;
 }
- 
+
 async function fetchCloudState(){
   const res = await fetch(`${SUPABASE_URL}/rest/v1/travelog_state?id=eq.main&select=data`, {
     headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
@@ -305,7 +312,7 @@ async function fetchCloudState(){
   if(!rows.length) return null;
   return rows[0].data;
 }
- 
+
 /* ---------- 카테고리 저장/불러오기 (로컬) ---------- */
 function loadCategories(){
   const raw = localStorage.getItem('categories');
@@ -320,7 +327,7 @@ function loadCategories(){
 }
 function saveCategoriesLocal(){ localStorage.setItem('categories', JSON.stringify(CAT_INFO)); }
 function saveCategories(){ saveCategoriesLocal(); queueCloudSync(); }
- 
+
 function loadCategoryOrder(){
   const raw = localStorage.getItem('categoryOrder');
   if(raw){ try{ customCategoryOrder = JSON.parse(raw); return; } catch(e){} }
@@ -329,7 +336,7 @@ function loadCategoryOrder(){
 }
 function saveCategoryOrderLocal(){ localStorage.setItem('categoryOrder', JSON.stringify(customCategoryOrder)); }
 function saveCategoryOrder(){ saveCategoryOrderLocal(); queueCloudSync(); }
- 
+
 /* ---------- 장소 저장/불러오기 (로컬) ---------- */
 function saveToStorageLocal(){
   const data = places.map(p => ({
@@ -340,7 +347,7 @@ function saveToStorageLocal(){
   localStorage.setItem('travelPins', JSON.stringify(data));
 }
 function saveToStorage(){ saveToStorageLocal(); queueCloudSync(); }
- 
+
 function loadFromStorage(){
   const raw = localStorage.getItem('travelPins');
   if(!raw) return;
@@ -361,12 +368,12 @@ function loadFromStorage(){
     if(p.id >= idSeq) idSeq = p.id + 1;
   });
 }
- 
+
 const listEl = document.getElementById('list');
 const countText = document.getElementById('countText');
 const activeCatLabel = document.getElementById('activeCatLabel');
 const localFilterInput = document.getElementById('localFilterInput');
- 
+
 /* ---------- 카테고리 UI ---------- */
 function catRowHtml(key){
   const info = CAT_INFO[key];
@@ -389,7 +396,7 @@ function catRowHtml(key){
     ${memoBox}
   </div>`;
 }
- 
+
 function renderCatRow(){
   let html = '';
   html += catRowHtml('before_visit');
@@ -398,7 +405,7 @@ function renderCatRow(){
   html += `<div class="catListItem addCatRow" id="addCatBtn"><div class="catMain"><span class="catEmoji">➕</span><span class="catLabel">카테고리 추가</span></div></div>`;
   document.getElementById('catRow').innerHTML = html;
 }
- 
+
 function addNewCategory(){
   const label = prompt('새 카테고리 이름을 입력하세요 (예: 카페, 서울여행)');
   if(!label || !label.trim()) return;
@@ -411,7 +418,7 @@ function addNewCategory(){
   saveCategoryOrder();
   selectCategory(key);
 }
- 
+
 function deleteCategory(key){
   if(DEFAULT_KEYS.includes(key)) return;
   const info = CAT_INFO[key];
@@ -428,7 +435,7 @@ function deleteCategory(key){
   renderCatRow();
   renderPlaceList();
 }
- 
+
 function moveCategory(key, dir){
   const idx = customCategoryOrder.indexOf(key);
   const newIdx = idx + dir;
@@ -438,7 +445,7 @@ function moveCategory(key, dir){
   renderCatRow();
   refreshAllPinEmojis();
 }
- 
+
 function refreshAllPinEmojis(){
   let changed = false;
   places.forEach(p=>{
@@ -451,20 +458,20 @@ function refreshAllPinEmojis(){
   });
   if(changed){ saveToStorage(); renderPlaceList(); }
 }
- 
+
 function selectCategory(key){
   selectedCat = key;
   localFilterInput.value = '';
   renderCatRow();
   renderPlaceList();
 }
- 
+
 function editCategoryMemo(key, value){
   if(!CAT_INFO[key]) return;
   CAT_INFO[key].memo = value;
   saveCategories();
 }
- 
+
 document.getElementById('catRow').addEventListener('click', (e)=>{
   if(e.target.closest('#addCatBtn')){ addNewCategory(); return; }
   const delBtn = e.target.closest('[data-del]');
@@ -478,20 +485,20 @@ document.getElementById('catRow').addEventListener('change', (e)=>{
   const box = e.target.closest('[data-catmemo]');
   if(box){ editCategoryMemo(box.dataset.catmemo, box.value); }
 });
- 
+
 document.getElementById('searchBtn').addEventListener('click', doSearch);
 document.getElementById('searchInput').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter'){ e.preventDefault(); doSearch(); }
 });
 localFilterInput.addEventListener('input', renderPlaceList);
- 
+
 const toggleBtn = document.getElementById('toggleSidebarBtn');
 const sidebarEl = document.getElementById('sidebar');
 toggleBtn.addEventListener('click', ()=>{
   sidebarEl.classList.toggle('collapsed');
   setTimeout(()=>{ if(map) map.relayout(); }, 260);
 });
- 
+
 /* ---------- 지도 핀 ---------- */
 function getDisplayEmoji(categories){
   for(const key of customCategoryOrder){
@@ -501,7 +508,7 @@ function getDisplayEmoji(categories){
   if(CAT_INFO.before_visit) return CAT_INFO.before_visit.emoji;
   return '📍';
 }
- 
+
 function makePinElement(id, visited, emoji){
   const div = document.createElement('div');
   div.className = 'footPin ' + (visited ? 'green' : 'orange');
@@ -511,7 +518,7 @@ function makePinElement(id, visited, emoji){
   div.addEventListener('touchstart', (e)=> e.stopPropagation());
   return div;
 }
- 
+
 function createOverlay(id, lat, lng, visited, emoji){
   return new kakao.maps.CustomOverlay({
     position: new kakao.maps.LatLng(lat, lng),
@@ -521,7 +528,7 @@ function createOverlay(id, lat, lng, visited, emoji){
     map: map
   });
 }
- 
+
 /* ---------- 방문/삭제 선택 모달 ---------- */
 function openPinAction(id){
   const p = places.find(x=>x.id===id);
@@ -562,14 +569,14 @@ document.getElementById('modalCancelBtn').addEventListener('click', closePinActi
 document.getElementById('pinActionModal').addEventListener('click', (e)=>{
   if(e.target.id === 'pinActionModal') closePinAction();
 });
- 
+
 function navigateToPlace(id){
   const p = places.find(x=>x.id===id);
   if(!p || !map) return;
   map.setCenter(new kakao.maps.LatLng(p.lat, p.lng));
   map.setLevel(4);
 }
- 
+
 /* ---------- 장소 생성 ---------- */
 function finalizePlace(name, categories, lat, lng, address){
   const emoji = getDisplayEmoji(categories);
@@ -584,16 +591,16 @@ function finalizePlace(name, categories, lat, lng, address){
   renderPlaceList();
   return place;
 }
- 
+
 /* ---------- 검색 ---------- */
 let ps;
 let previewMarkers = [];
- 
+
 function clearPreviewMarkers(){
   previewMarkers.forEach(m => m.setMap(null));
   previewMarkers = [];
 }
- 
+
 function doSearch(){
   const keyword = document.getElementById('searchInput').value.trim();
   const resultsEl = document.getElementById('searchResults');
@@ -612,7 +619,7 @@ function doSearch(){
         <div class="searchName">${escapeHtml(d.place_name)}</div>
         <div class="searchAddr">${escapeHtml(d.road_address_name || d.address_name || '')}</div>
       </div>`).join('');
- 
+
     const bounds = new kakao.maps.LatLngBounds();
     data.slice(0,6).forEach((d,i)=>{
       const pos = new kakao.maps.LatLng(parseFloat(d.y), parseFloat(d.x));
@@ -624,7 +631,7 @@ function doSearch(){
     if(data.length > 0) map.setBounds(bounds);
   });
 }
- 
+
 function selectSearchResult(i){
   const d = window.__searchData[i];
   if(!d) return;
@@ -636,7 +643,7 @@ function selectSearchResult(i){
   };
   openCatPickModal();
 }
- 
+
 /* ---------- 담을 카테고리 선택 모달 ---------- */
 function openCatPickModal(){
   document.getElementById('catPickTitle').textContent = pendingSearchResult.name;
@@ -673,7 +680,7 @@ document.getElementById('catPickCancelBtn').addEventListener('click', closeCatPi
 document.getElementById('catPickModal').addEventListener('click', (e)=>{
   if(e.target.id === 'catPickModal') closeCatPickModal();
 });
- 
+
 /* ---------- 장소 삭제/메모 ---------- */
 function removePlace(id){
   const idx = places.findIndex(x=>x.id===id);
@@ -683,19 +690,19 @@ function removePlace(id){
   saveToStorage();
   renderPlaceList();
 }
- 
+
 function editMemo(id, value){
   const p = places.find(x=>x.id===id);
   if(!p) return;
   p.memo = value;
   saveToStorage();
 }
- 
+
 /* ---------- 목록 렌더링 ---------- */
 function renderPlaceList(){
   const label = (selectedCat && CAT_INFO[selectedCat]) ? CAT_INFO[selectedCat].label : '없음';
   activeCatLabel.textContent = label;
- 
+
   if(!selectedCat){
     countText.textContent = '0';
     listEl.innerHTML = '<div class="emptyState">먼저 카테고리를 추가하거나 선택해주세요.</div>';
@@ -704,7 +711,7 @@ function renderPlaceList(){
   const query = (localFilterInput.value || '').trim().toLowerCase();
   let filtered = places.filter(p => p.categories.includes(selectedCat));
   if(query) filtered = filtered.filter(p => p.name.toLowerCase().includes(query));
- 
+
   countText.textContent = filtered.length;
   if(filtered.length === 0){
     listEl.innerHTML = query
@@ -726,20 +733,20 @@ function renderPlaceList(){
       <button class="delBtn" onclick="removePlace(${p.id})" title="삭제">✕</button>
     </div>`).join('');
 }
- 
+
 function escapeHtml(str){
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
 }
- 
+
 async function initData(){
   const hintEl = document.getElementById('hintText');
   hintEl.textContent = '☁️ 데이터 불러오는 중...';
- 
+
   let cloud = null;
   try{ cloud = await fetchCloudState(); } catch(e){ cloud = null; }
- 
+
   if(cloud){
     CAT_INFO = cloud.categories || {};
     if(!CAT_INFO.before_visit) CAT_INFO.before_visit = { emoji:'📍', label:'방문 전', memo:'' };
@@ -747,7 +754,7 @@ async function initData(){
     customCategoryOrder = cloud.categoryOrder || Object.keys(CAT_INFO).filter(k => !DEFAULT_KEYS.includes(k));
     saveCategoriesLocal();
     saveCategoryOrderLocal();
- 
+
     places = [];
     (cloud.places || []).forEach(p=>{
       let categories = p.categories || [];
@@ -766,12 +773,12 @@ async function initData(){
     loadFromStorage();
     queueCloudSync();
   }
- 
+
   hintEl.textContent = '① 카테고리 만들기 → ② 장소 검색 → ③ 담을 카테고리 체크';
   renderCatRow();
   renderPlaceList();
 }
- 
+
 kakao.maps.load(function(){
   const container = document.getElementById('map');
   map = new kakao.maps.Map(container, {
@@ -780,9 +787,9 @@ kakao.maps.load(function(){
   });
   map.setZoomable(true);
   ps = new kakao.maps.services.Places();
- 
+
   initData();
- 
+
   if(navigator.geolocation){
     navigator.geolocation.getCurrentPosition(
       pos => {
@@ -793,7 +800,12 @@ kakao.maps.load(function(){
     );
   }
 });
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
 </script>
 </body>
 </html>
- 
