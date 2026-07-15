@@ -266,13 +266,13 @@ let pendingSearchResult = null;
 function loadCategories(){
   const raw = localStorage.getItem('categories');
   if(raw){
-    try{ CAT_INFO = JSON.parse(raw); return; } catch(e){}
+    try{ CAT_INFO = JSON.parse(raw); } catch(e){ CAT_INFO = {}; }
   }
-  CAT_INFO = {
-    before_visit: { emoji:'📍', label:'방문 전', memo:'' },
-    after_visit:  { emoji:'✅', label:'방문 후', memo:'' }
-  };
-  saveCategories();
+  // 기존 데이터에 기본 카테고리가 없으면 채워넣음 (신규/구버전 데이터 모두 대응)
+  let needsSave = false;
+  if(!CAT_INFO.before_visit){ CAT_INFO.before_visit = { emoji:'📍', label:'방문 전', memo:'' }; needsSave = true; }
+  if(!CAT_INFO.after_visit){ CAT_INFO.after_visit = { emoji:'✅', label:'방문 후', memo:'' }; needsSave = true; }
+  if(needsSave) saveCategories();
 }
 function saveCategories(){ localStorage.setItem('categories', JSON.stringify(CAT_INFO)); }
  
