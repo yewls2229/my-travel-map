@@ -253,6 +253,9 @@
 </div>
  
 <script>
+const SUPABASE_URL = 'https://hladgocnwkdobcsxcmqk.supabase.co';
+const SUPABASE_KEY = 'sb_publishable__FWBn_--TTx2JgOtuwqyEQ_cnyqW6tw';
+ 
 const DEFAULT_KEYS = ['before_visit','after_visit'];
 let CAT_INFO = {};             // { key: {emoji,label,memo} }
 let customCategoryOrder = [];  // 커스텀 카테고리 우선순위 (지도 이모지 결정용)
@@ -263,7 +266,47 @@ let selectedCat = null;        // 목록 필터링용 (보기 전용)
 let pinActionTargetId = null;
 let pendingSearchResult = null;
  
-/* ---------- 카테고리 저장/불러오기 ---------- */
+/* ---------- 클라우드(Supabase) 동기화 ---------- */
+let cloudSyncTimer = null;
+function queueCloudSync(){
+  clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = setTimeout(()=>{ pushCloudState().catch(()=>{}); }, 700);
+}
+ 
+async function pushCloudState(){
+  const state = {
+    categories: CAT_INFO,
+    categoryOrder: customCategoryOrder,
+    places: places.map(p => ({
+      id: p.id, name: p.name, categories: p.categories,
+      emoji: p.emoji, lat: p.lat, lng: p.lng, visited: p.visited,
+      memo: p.memo || '', address: p.address || ''
+    }))
+  };
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/travelog_state?on_conflict=id`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'resolution=merge-duplicates'
+    },
+    body: JSON.stringify([{ id: 'main', data: state, updated_at: new Date().toISOString() }])
+  });
+  return res.ok;
+}
+ 
+async function fetchCloudState(){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/travelog_state?id=eq.main&select=data`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if(!res.ok) return null;
+  const rows = await res.json();
+  if(!rows.length) return null;
+  return rows[0].data;
+}
+ 
+/* ---------- 카테고리 저장/불러오기 (로컬) ---------- */
 function loadCategories(){
   const raw = localStorage.getItem('categories');
   if(raw){
@@ -275,7 +318,8 @@ function loadCategories(){
   if(!CAT_INFO.after_visit){ CAT_INFO.after_visit = { emoji:'✅', label:'방문 후', memo:'' }; needsSave = true; }
   if(needsSave) saveCategories();
 }
-function saveCategories(){ localStorage.setItem('categories', JSON.stringify(CAT_INFO)); }
+function saveCategoriesLocal(){ localStorage.setItem('categories', JSON.stringify(CAT_INFO)); }
+function saveCategories(){ saveCategoriesLocal(); queueCloudSync(); }
  
 function loadCategoryOrder(){
   const raw = localStorage.getItem('categoryOrder');
@@ -283,10 +327,11 @@ function loadCategoryOrder(){
   customCategoryOrder = Object.keys(CAT_INFO).filter(k => !DEFAULT_KEYS.includes(k));
   saveCategoryOrder();
 }
-function saveCategoryOrder(){ localStorage.setItem('categoryOrder', JSON.stringify(customCategoryOrder)); }
+function saveCategoryOrderLocal(){ localStorage.setItem('categoryOrder', JSON.stringify(customCategoryOrder)); }
+function saveCategoryOrder(){ saveCategoryOrderLocal(); queueCloudSync(); }
  
-/* ---------- 장소 저장/불러오기 ---------- */
-function saveToStorage(){
+/* ---------- 장소 저장/불러오기 (로컬) ---------- */
+function saveToStorageLocal(){
   const data = places.map(p => ({
     id: p.id, name: p.name, categories: p.categories,
     emoji: p.emoji, lat: p.lat, lng: p.lng, visited: p.visited,
@@ -294,6 +339,7 @@ function saveToStorage(){
   }));
   localStorage.setItem('travelPins', JSON.stringify(data));
 }
+function saveToStorage(){ saveToStorageLocal(); queueCloudSync(); }
  
 function loadFromStorage(){
   const raw = localStorage.getItem('travelPins');
@@ -432,10 +478,6 @@ document.getElementById('catRow').addEventListener('change', (e)=>{
   const box = e.target.closest('[data-catmemo]');
   if(box){ editCategoryMemo(box.dataset.catmemo, box.value); }
 });
- 
-loadCategories();
-loadCategoryOrder();
-renderCatRow();
  
 document.getElementById('searchBtn').addEventListener('click', doSearch);
 document.getElementById('searchInput').addEventListener('keydown', (e)=>{
@@ -691,6 +733,45 @@ function escapeHtml(str){
   return d.innerHTML;
 }
  
+async function initData(){
+  const hintEl = document.getElementById('hintText');
+  hintEl.textContent = '☁️ 데이터 불러오는 중...';
+ 
+  let cloud = null;
+  try{ cloud = await fetchCloudState(); } catch(e){ cloud = null; }
+ 
+  if(cloud){
+    CAT_INFO = cloud.categories || {};
+    if(!CAT_INFO.before_visit) CAT_INFO.before_visit = { emoji:'📍', label:'방문 전', memo:'' };
+    if(!CAT_INFO.after_visit) CAT_INFO.after_visit = { emoji:'✅', label:'방문 후', memo:'' };
+    customCategoryOrder = cloud.categoryOrder || Object.keys(CAT_INFO).filter(k => !DEFAULT_KEYS.includes(k));
+    saveCategoriesLocal();
+    saveCategoryOrderLocal();
+ 
+    places = [];
+    (cloud.places || []).forEach(p=>{
+      let categories = p.categories || [];
+      if(!categories.includes('before_visit') && !categories.includes('after_visit')){
+        categories = [...categories, p.visited ? 'after_visit' : 'before_visit'];
+      }
+      const overlay = createOverlay(p.id, p.lat, p.lng, !!p.visited, p.emoji);
+      places.push({ ...p, categories, overlay });
+      if(p.id >= idSeq) idSeq = p.id + 1;
+    });
+    saveToStorageLocal();
+  } else {
+    // 클라우드에 데이터가 없거나 오프라인 → 이 기기에 저장된 내용으로 시작하고, 온라인이면 클라우드로 올려줌
+    loadCategories();
+    loadCategoryOrder();
+    loadFromStorage();
+    queueCloudSync();
+  }
+ 
+  hintEl.textContent = '① 카테고리 만들기 → ② 장소 검색 → ③ 담을 카테고리 체크';
+  renderCatRow();
+  renderPlaceList();
+}
+ 
 kakao.maps.load(function(){
   const container = document.getElementById('map');
   map = new kakao.maps.Map(container, {
@@ -700,8 +781,7 @@ kakao.maps.load(function(){
   map.setZoomable(true);
   ps = new kakao.maps.services.Places();
  
-  loadFromStorage();
-  renderPlaceList();
+  initData();
  
   if(navigator.geolocation){
     navigator.geolocation.getCurrentPosition(
