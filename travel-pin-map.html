@@ -272,6 +272,13 @@
   .cancelBtn:hover{background:#e9e4d8;}
   .catPickRow{display:flex;align-items:center;gap:8px;padding:7px 2px;font-size:13px;cursor:pointer;}
   .catPickRow input{width:16px;height:16px;cursor:pointer;}
+  .pickGroupBlock{margin-bottom:2px;}
+  .pickGroupHeader{
+    display:flex;align-items:center;gap:6px;padding:6px 2px;cursor:pointer;
+    font-weight:700;font-size:12.5px;color:var(--ink);
+  }
+  .pickGroupHeader.ungroupedHeader{cursor:default;color:var(--text-soft);font-weight:600;}
+  .pickGroupChildren{display:flex;flex-direction:column;padding-left:18px;margin-bottom:4px;}
 </style>
 </head>
 <body>
@@ -1085,25 +1092,71 @@ document.getElementById('modalEditCatBtn').addEventListener('click', ()=>{
   openCatEditModal(id);
 });
  
+/* ---------- 그룹별 접이식 카테고리 체크박스 목록 (공용) ---------- */
+let pickCollapsed = {};
+function buildPickListHtml(checkedKeys){
+  let html = '';
+  let any = false;
+  groupOrder.forEach(gid=>{
+    if(!GROUPS[gid]) return;
+    const childKeys = customCategoryOrder.filter(k => CAT_INFO[k] && CAT_INFO[k].groupId === gid);
+    if(childKeys.length === 0) return;
+    any = true;
+    const collapsed = !!pickCollapsed[gid];
+    html += `<div class="pickGroupBlock">
+      <div class="pickGroupHeader" data-pick-toggle="${gid}">
+        <span class="groupArrow">${collapsed ? '▶' : '🔽'}</span>
+        <span class="groupName">${escapeHtml(GROUPS[gid].name)}</span>
+      </div>`;
+    if(!collapsed){
+      html += `<div class="pickGroupChildren">`;
+      childKeys.forEach(k=>{
+        const checked = checkedKeys.includes(k) ? 'checked' : '';
+        html += `<label class="catPickRow"><input type="checkbox" value="${k}" ${checked}><span>${CAT_INFO[k].emoji} ${escapeHtml(CAT_INFO[k].label)}</span></label>`;
+      });
+      html += `</div>`;
+    }
+    html += `</div>`;
+  });
+  const ungrouped = customCategoryOrder.filter(k => CAT_INFO[k] && !CAT_INFO[k].groupId);
+  if(ungrouped.length > 0){
+    any = true;
+    html += `<div class="pickGroupBlock">
+      <div class="pickGroupHeader ungroupedHeader">
+        <span class="groupArrow"> </span><span class="groupName">미분류</span>
+      </div>
+      <div class="pickGroupChildren">`;
+    ungrouped.forEach(k=>{
+      const checked = checkedKeys.includes(k) ? 'checked' : '';
+      html += `<label class="catPickRow"><input type="checkbox" value="${k}" ${checked}><span>${CAT_INFO[k].emoji} ${escapeHtml(CAT_INFO[k].label)}</span></label>`;
+    });
+    html += `</div></div>`;
+  }
+  if(!any){
+    html = '<div class="emptyState" style="padding:6px 0;">아직 만든 카테고리가 없어요.</div>';
+  }
+  return html;
+}
+function getCheckedKeysFrom(containerId){
+  return Array.from(document.querySelectorAll(`#${containerId} input[type=checkbox]:checked`)).map(el=>el.value);
+}
+ 
 function openCatEditModal(id){
   const p = places.find(x=>x.id===id);
   if(!p) return;
   catEditTargetId = id;
   document.getElementById('catEditTitle').textContent = p.name;
-  const listEl3 = document.getElementById('catEditList');
-  if(customCategoryOrder.length === 0){
-    listEl3.innerHTML = '<div class="emptyState" style="padding:6px 0;">아직 만든 카테고리가 없어요.<br>먼저 카테고리를 추가해주세요.</div>';
-  } else {
-    listEl3.innerHTML = customCategoryOrder.filter(k=>CAT_INFO[k]).map(k=>{
-      const checked = p.categories.includes(k) ? 'checked' : '';
-      return `<label class="catPickRow">
-        <input type="checkbox" value="${k}" ${checked}>
-        <span>${CAT_INFO[k].emoji} ${escapeHtml(CAT_INFO[k].label)}</span>
-      </label>`;
-    }).join('');
-  }
+  document.getElementById('catEditList').innerHTML = buildPickListHtml(p.categories);
   document.getElementById('catEditModal').style.display = 'flex';
 }
+document.getElementById('catEditList').addEventListener('click', (e)=>{
+  const toggleEl = e.target.closest('[data-pick-toggle]');
+  if(!toggleEl) return;
+  const gid = toggleEl.dataset.pickToggle;
+  const checked = getCheckedKeysFrom('catEditList');
+  pickCollapsed[gid] = !pickCollapsed[gid];
+  document.getElementById('catEditList').innerHTML = buildPickListHtml(checked);
+});
 function closeCatEditModal(){
   document.getElementById('catEditModal').style.display = 'none';
   catEditTargetId = null;
@@ -1111,7 +1164,7 @@ function closeCatEditModal(){
 document.getElementById('catEditConfirmBtn').addEventListener('click', ()=>{
   const p = places.find(x=>x.id===catEditTargetId);
   if(p){
-    const checked = Array.from(document.querySelectorAll('#catEditList input[type=checkbox]:checked')).map(el=>el.value);
+    const checked = getCheckedKeysFrom('catEditList');
     const statusCat = p.visited ? 'after_visit' : 'before_visit';
     p.categories = [statusCat, ...checked];
     p.emoji = getDisplayEmoji(p.categories);
@@ -1275,18 +1328,17 @@ function selectSearchResult(i){
 /* ---------- 담을 카테고리 선택 모달 ---------- */
 function openCatPickModal(){
   document.getElementById('catPickTitle').textContent = pendingSearchResult.name;
-  const listEl2 = document.getElementById('catPickList');
-  if(customCategoryOrder.length === 0){
-    listEl2.innerHTML = '<div class="emptyState" style="padding:6px 0;">아직 만든 카테고리가 없어요.<br>그래도 "방문 전"에는 자동으로 담겨요.</div>';
-  } else {
-    listEl2.innerHTML = customCategoryOrder.filter(k=>CAT_INFO[k]).map(k=>`
-      <label class="catPickRow">
-        <input type="checkbox" value="${k}">
-        <span>${CAT_INFO[k].emoji} ${escapeHtml(CAT_INFO[k].label)}</span>
-      </label>`).join('');
-  }
+  document.getElementById('catPickList').innerHTML = buildPickListHtml([]);
   document.getElementById('catPickModal').style.display = 'flex';
 }
+document.getElementById('catPickList').addEventListener('click', (e)=>{
+  const toggleEl = e.target.closest('[data-pick-toggle]');
+  if(!toggleEl) return;
+  const gid = toggleEl.dataset.pickToggle;
+  const checked = getCheckedKeysFrom('catPickList');
+  pickCollapsed[gid] = !pickCollapsed[gid];
+  document.getElementById('catPickList').innerHTML = buildPickListHtml(checked);
+});
 function closeCatPickModal(){
   document.getElementById('catPickModal').style.display = 'none';
   pendingSearchResult = null;
