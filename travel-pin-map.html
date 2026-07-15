@@ -76,7 +76,7 @@
   #addForm input[type=text]:focus{border-color:var(--gold);}
  
   /* ---------- Category list ---------- */
-  .catList{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;padding-right:2px;}
+  .catList{display:flex;flex-direction:column;gap:6px;max-height:230px;overflow-y:auto;padding-right:2px;}
   .catListItem{
     border:1px solid var(--line);border-radius:8px;background:var(--sb-input);
   }
@@ -90,7 +90,13 @@
     font-size:17px;flex-shrink:0;line-height:1;
     font-family:'Segoe UI Emoji','Noto Color Emoji','Apple Color Emoji',sans-serif;
   }
-  .catLabel{font-size:13px;font-weight:600;flex:1;line-height:1.4;word-break:break-word;}
+  .catLabel{font-size:13px;font-weight:600;line-height:1.4;word-break:break-word;}
+  .catCtrls{display:flex;gap:2px;margin-left:auto;flex-shrink:0;}
+  .catCtrlBtn{background:none;border:none;cursor:pointer;font-size:11px;color:inherit;opacity:0.75;padding:2px 4px;}
+  .catCtrlBtn:hover{opacity:1;}
+  .catDel:hover{color:#E2723A;}
+  .catBadge{margin-left:auto;font-size:10px;background:rgba(0,0,0,0.08);padding:2px 7px;border-radius:10px;color:var(--text-soft);flex-shrink:0;}
+  .catListItem.active .catBadge{background:rgba(255,255,255,0.25);color:#fff;}
   .catMemoBox{
     width:100%;display:block;border:none;border-top:1px solid var(--line);
     background:transparent;color:var(--ink);font-size:11.5px;padding:6px 10px;
@@ -172,13 +178,13 @@
   .footPin.orange{background:var(--pin-yellow);}
   .footPin.green{background:var(--green);}
  
-  /* ---------- Pin action modal ---------- */
+  /* ---------- Modals ---------- */
   .modalOverlay{
     display:none;position:fixed;inset:0;background:rgba(31,61,58,0.45);
     z-index:2000;align-items:center;justify-content:center;
   }
   .modalBox{
-    background:#fff;border-radius:12px;padding:18px;width:260px;
+    background:#fff;border-radius:12px;padding:18px;width:270px;
     box-shadow:0 10px 30px rgba(0,0,0,0.25);
   }
   .modalTitle{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:12px;text-align:center;word-break:break-word;}
@@ -192,6 +198,8 @@
   .deleteBtn:hover{background:#eecabd;}
   .cancelBtn{background:var(--sb-input);color:var(--text-soft);margin-bottom:0;}
   .cancelBtn:hover{background:#e9e4d8;}
+  .catPickRow{display:flex;align-items:center;gap:8px;padding:7px 2px;font-size:13px;cursor:pointer;}
+  .catPickRow input{width:16px;height:16px;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -200,11 +208,11 @@
     <div id="sidebarInner">
     <div id="brand">
       <h1>TraveLog</h1>
-      <p>카테고리를 만들고, 검색해서 장소를 담아보세요. 지도의 핀을 누르면 방문/삭제를 고를 수 있어요.</p>
+      <p>카테고리를 만들고, 장소를 검색해서 담아보세요. 지도의 핀을 누르면 방문/삭제를 고를 수 있어요.</p>
     </div>
  
     <div id="addForm">
-      <div class="hint" id="hintText">① 카테고리를 만들거나 선택 → ② 검색해서 장소 추가</div>
+      <div class="hint" id="hintText">① 카테고리 만들기 → ② 장소 검색 → ③ 담을 카테고리 체크</div>
       <div class="catList" id="catRow"></div>
  
       <div class="searchRow">
@@ -234,33 +242,52 @@
   </div>
 </div>
  
-<script>
-let CAT_INFO = {};      // { key: {emoji,label,memo} } - 전부 사용자가 추가한 카테고리
-let places = [];        // {id, name, category, emoji, lat, lng, visited, memo, overlay}
-let idSeq = 1;
-let map;                // kakao.maps.Map 인스턴스 (SDK 로드 후 생성됨)
-let selectedCat = null;  // 현재 선택된(활성) 카테고리
-let pinActionTargetId = null;
+<div class="modalOverlay" id="catPickModal">
+  <div class="modalBox">
+    <div class="modalTitle" id="catPickTitle"></div>
+    <div id="catPickList" style="margin-bottom:12px;max-height:220px;overflow-y:auto;"></div>
+    <button class="modalBtn visitBtn" id="catPickConfirmBtn">추가하기</button>
+    <button class="modalBtn cancelBtn" id="catPickCancelBtn">취소</button>
+  </div>
+</div>
  
+<script>
+const DEFAULT_KEYS = ['before_visit','after_visit'];
+let CAT_INFO = {};             // { key: {emoji,label,memo} }
+let customCategoryOrder = [];  // 커스텀 카테고리 우선순위 (지도 이모지 결정용)
+let places = [];               // {id, name, categories:[], emoji, lat, lng, visited, memo, address, overlay}
+let idSeq = 1;
+let map;
+let selectedCat = null;        // 목록 필터링용 (보기 전용)
+let pinActionTargetId = null;
+let pendingSearchResult = null;
+ 
+/* ---------- 카테고리 저장/불러오기 ---------- */
 function loadCategories(){
   const raw = localStorage.getItem('categories');
   if(raw){
     try{ CAT_INFO = JSON.parse(raw); return; } catch(e){}
   }
-  // 최초 실행 시 기본 카테고리 두 개를 만들어줌
   CAT_INFO = {
     before_visit: { emoji:'📍', label:'방문 전', memo:'' },
     after_visit:  { emoji:'✅', label:'방문 후', memo:'' }
   };
   saveCategories();
 }
-function saveCategories(){
-  localStorage.setItem('categories', JSON.stringify(CAT_INFO));
-}
+function saveCategories(){ localStorage.setItem('categories', JSON.stringify(CAT_INFO)); }
  
+function loadCategoryOrder(){
+  const raw = localStorage.getItem('categoryOrder');
+  if(raw){ try{ customCategoryOrder = JSON.parse(raw); return; } catch(e){} }
+  customCategoryOrder = Object.keys(CAT_INFO).filter(k => !DEFAULT_KEYS.includes(k));
+  saveCategoryOrder();
+}
+function saveCategoryOrder(){ localStorage.setItem('categoryOrder', JSON.stringify(customCategoryOrder)); }
+ 
+/* ---------- 장소 저장/불러오기 ---------- */
 function saveToStorage(){
   const data = places.map(p => ({
-    id: p.id, name: p.name, category: p.category,
+    id: p.id, name: p.name, categories: p.categories,
     emoji: p.emoji, lat: p.lat, lng: p.lng, visited: p.visited,
     memo: p.memo || '', address: p.address || ''
   }));
@@ -273,8 +300,17 @@ function loadFromStorage(){
   let saved;
   try{ saved = JSON.parse(raw); } catch(e){ return; }
   saved.forEach(p=>{
-    const overlay = createOverlay(p.id, p.lat, p.lng, p.category, p.visited, p.emoji);
-    places.push({ ...p, overlay });
+    let categories = p.categories;
+    if(!categories){
+      categories = [];
+      if(p.category) categories.push(p.category);
+    }
+    if(!categories.includes('before_visit') && !categories.includes('after_visit')){
+      categories.push(p.visited ? 'after_visit' : 'before_visit');
+    }
+    const emoji = p.emoji || getDisplayEmoji(categories);
+    const overlay = createOverlay(p.id, p.lat, p.lng, !!p.visited, emoji);
+    places.push({ ...p, categories, emoji, overlay });
     if(p.id >= idSeq) idSeq = p.id + 1;
   });
 }
@@ -284,13 +320,23 @@ const countText = document.getElementById('countText');
 const activeCatLabel = document.getElementById('activeCatLabel');
 const localFilterInput = document.getElementById('localFilterInput');
  
+/* ---------- 카테고리 UI ---------- */
 function catRowHtml(key){
   const info = CAT_INFO[key];
+  const isDefault = DEFAULT_KEYS.includes(key);
   const active = key === selectedCat ? ' active' : '';
+  const controls = isDefault
+    ? `<span class="catBadge">기본</span>`
+    : `<div class="catCtrls">
+         <button class="catCtrlBtn" data-move="${key}" data-dir="-1" title="위로">▲</button>
+         <button class="catCtrlBtn" data-move="${key}" data-dir="1" title="아래로">▼</button>
+         <button class="catCtrlBtn catDel" data-del="${key}" title="삭제">✕</button>
+       </div>`;
   return `<div class="catListItem${active}" data-cat="${key}">
     <div class="catMain" data-select="${key}">
       <span class="catEmoji">${info.emoji}</span>
       <span class="catLabel">${escapeHtml(info.label)}</span>
+      ${controls}
     </div>
     <textarea class="catMemoBox" placeholder="메모 남기기" data-catmemo="${key}">${escapeHtml(info.memo || '')}</textarea>
   </div>`;
@@ -298,7 +344,9 @@ function catRowHtml(key){
  
 function renderCatRow(){
   let html = '';
-  Object.keys(CAT_INFO).forEach(k => { html += catRowHtml(k); });
+  html += catRowHtml('before_visit');
+  html += catRowHtml('after_visit');
+  customCategoryOrder.forEach(k=>{ if(CAT_INFO[k]) html += catRowHtml(k); });
   html += `<div class="catListItem addCatRow" id="addCatBtn"><div class="catMain"><span class="catEmoji">➕</span><span class="catLabel">카테고리 추가</span></div></div>`;
   document.getElementById('catRow').innerHTML = html;
 }
@@ -310,8 +358,50 @@ function addNewCategory(){
   if(!emoji || !emoji.trim()) return;
   const key = 'cat_' + Date.now();
   CAT_INFO[key] = { emoji: emoji.trim(), label: label.trim(), memo: '' };
+  customCategoryOrder.push(key);
   saveCategories();
+  saveCategoryOrder();
   selectCategory(key);
+}
+ 
+function deleteCategory(key){
+  if(DEFAULT_KEYS.includes(key)) return;
+  const info = CAT_INFO[key];
+  if(!info) return;
+  if(!confirm(`"${info.label}" 카테고리를 삭제할까요?\n이 카테고리에 담긴 장소도 함께 삭제돼요.`)) return;
+  places.filter(p => p.categories.includes(key)).forEach(p => p.overlay.setMap(null));
+  places = places.filter(p => !p.categories.includes(key));
+  delete CAT_INFO[key];
+  customCategoryOrder = customCategoryOrder.filter(k => k !== key);
+  saveCategories();
+  saveCategoryOrder();
+  saveToStorage();
+  if(selectedCat === key) selectedCat = null;
+  renderCatRow();
+  renderPlaceList();
+}
+ 
+function moveCategory(key, dir){
+  const idx = customCategoryOrder.indexOf(key);
+  const newIdx = idx + dir;
+  if(idx === -1 || newIdx < 0 || newIdx >= customCategoryOrder.length) return;
+  [customCategoryOrder[idx], customCategoryOrder[newIdx]] = [customCategoryOrder[newIdx], customCategoryOrder[idx]];
+  saveCategoryOrder();
+  renderCatRow();
+  refreshAllPinEmojis();
+}
+ 
+function refreshAllPinEmojis(){
+  let changed = false;
+  places.forEach(p=>{
+    const newEmoji = getDisplayEmoji(p.categories);
+    if(newEmoji !== p.emoji){
+      p.emoji = newEmoji;
+      p.overlay.setContent(makePinElement(p.id, p.visited, p.emoji));
+      changed = true;
+    }
+  });
+  if(changed){ saveToStorage(); renderPlaceList(); }
 }
  
 function selectCategory(key){
@@ -329,6 +419,10 @@ function editCategoryMemo(key, value){
  
 document.getElementById('catRow').addEventListener('click', (e)=>{
   if(e.target.closest('#addCatBtn')){ addNewCategory(); return; }
+  const delBtn = e.target.closest('[data-del]');
+  if(delBtn){ deleteCategory(delBtn.dataset.del); return; }
+  const moveBtn = e.target.closest('[data-move]');
+  if(moveBtn){ moveCategory(moveBtn.dataset.move, parseInt(moveBtn.dataset.dir, 10)); return; }
   const main = e.target.closest('[data-select]');
   if(main){ selectCategory(main.dataset.select); }
 });
@@ -338,6 +432,7 @@ document.getElementById('catRow').addEventListener('change', (e)=>{
 });
  
 loadCategories();
+loadCategoryOrder();
 renderCatRow();
  
 document.getElementById('searchBtn').addEventListener('click', doSearch);
@@ -353,29 +448,37 @@ toggleBtn.addEventListener('click', ()=>{
   setTimeout(()=>{ if(map) map.relayout(); }, 260);
 });
  
-function makePinElement(id, category, visited, emoji){
-  const info = CAT_INFO[category] || { emoji: '📍' };
-  const symbol = emoji || info.emoji || '📍';
+/* ---------- 지도 핀 ---------- */
+function getDisplayEmoji(categories){
+  for(const key of customCategoryOrder){
+    if(categories.includes(key) && CAT_INFO[key]) return CAT_INFO[key].emoji;
+  }
+  if(categories.includes('after_visit') && CAT_INFO.after_visit) return CAT_INFO.after_visit.emoji;
+  if(CAT_INFO.before_visit) return CAT_INFO.before_visit.emoji;
+  return '📍';
+}
+ 
+function makePinElement(id, visited, emoji){
   const div = document.createElement('div');
   div.className = 'footPin ' + (visited ? 'green' : 'orange');
-  div.innerHTML = `<span>${symbol}</span>`;
+  div.innerHTML = `<span>${emoji || '📍'}</span>`;
   div.addEventListener('click', ()=> openPinAction(id));
   div.addEventListener('mousedown', (e)=> e.stopPropagation());
   div.addEventListener('touchstart', (e)=> e.stopPropagation());
   return div;
 }
  
-function createOverlay(id, lat, lng, category, visited, emoji){
+function createOverlay(id, lat, lng, visited, emoji){
   return new kakao.maps.CustomOverlay({
     position: new kakao.maps.LatLng(lat, lng),
-    content: makePinElement(id, category, visited, emoji),
+    content: makePinElement(id, visited, emoji),
     yAnchor: 1,
     xAnchor: 0.5,
     map: map
   });
 }
  
-// ---------- 방문/삭제 선택 모달 ----------
+/* ---------- 방문/삭제 선택 모달 ---------- */
 function openPinAction(id){
   const p = places.find(x=>x.id===id);
   if(!p) return;
@@ -391,8 +494,17 @@ function closePinAction(){
 document.getElementById('modalVisitBtn').addEventListener('click', ()=>{
   const p = places.find(x=>x.id===pinActionTargetId);
   if(p){
-    p.visited = !p.visited;
-    p.overlay.setContent(makePinElement(p.id, p.category, p.visited, p.emoji));
+    if(p.visited){
+      p.categories = p.categories.filter(c => c !== 'after_visit');
+      if(!p.categories.includes('before_visit')) p.categories.push('before_visit');
+      p.visited = false;
+    } else {
+      p.categories = p.categories.filter(c => c !== 'before_visit');
+      if(!p.categories.includes('after_visit')) p.categories.push('after_visit');
+      p.visited = true;
+    }
+    p.emoji = getDisplayEmoji(p.categories);
+    p.overlay.setContent(makePinElement(p.id, p.visited, p.emoji));
     saveToStorage();
     renderPlaceList();
   }
@@ -414,21 +526,24 @@ function navigateToPlace(id){
   map.setLevel(4);
 }
  
-function finalizePlace(name, category, lat, lng, address){
-  const info = CAT_INFO[category];
+/* ---------- 장소 생성 ---------- */
+function finalizePlace(name, categories, lat, lng, address){
+  const emoji = getDisplayEmoji(categories);
+  const visited = categories.includes('after_visit');
   const place = {
-    id: idSeq++, name, category, emoji: info.emoji,
-    lat, lng, visited:false, memo:'', address: address || '', overlay:null
+    id: idSeq++, name, categories, emoji,
+    lat, lng, visited, memo:'', address: address || '', overlay:null
   };
-  place.overlay = createOverlay(place.id, lat, lng, category, false, place.emoji);
+  place.overlay = createOverlay(place.id, lat, lng, visited, emoji);
   places.push(place);
   saveToStorage();
   renderPlaceList();
   return place;
 }
  
-let ps; // kakao.maps.services.Places 인스턴스 (SDK 로드 후 생성)
-let previewMarkers = []; // 검색 결과 미리보기 마커
+/* ---------- 검색 ---------- */
+let ps;
+let previewMarkers = [];
  
 function clearPreviewMarkers(){
   previewMarkers.forEach(m => m.setMap(null));
@@ -436,7 +551,6 @@ function clearPreviewMarkers(){
 }
  
 function doSearch(){
-  if(!selectedCat){ alert('먼저 카테고리를 선택하거나 추가해주세요.'); return; }
   const keyword = document.getElementById('searchInput').value.trim();
   const resultsEl = document.getElementById('searchResults');
   clearPreviewMarkers();
@@ -470,18 +584,53 @@ function doSearch(){
 function selectSearchResult(i){
   const d = window.__searchData[i];
   if(!d) return;
-  if(!selectedCat){ alert('먼저 카테고리를 선택하거나 추가해주세요.'); return; }
-  const lat = parseFloat(d.y);
-  const lng = parseFloat(d.x);
-  const address = d.road_address_name || d.address_name || '';
-  finalizePlace(d.place_name, selectedCat, lat, lng, address);
-  map.setCenter(new kakao.maps.LatLng(lat, lng));
-  map.setLevel(4);
+  pendingSearchResult = {
+    name: d.place_name,
+    lat: parseFloat(d.y),
+    lng: parseFloat(d.x),
+    address: d.road_address_name || d.address_name || ''
+  };
+  openCatPickModal();
+}
+ 
+/* ---------- 담을 카테고리 선택 모달 ---------- */
+function openCatPickModal(){
+  document.getElementById('catPickTitle').textContent = pendingSearchResult.name;
+  const listEl2 = document.getElementById('catPickList');
+  if(customCategoryOrder.length === 0){
+    listEl2.innerHTML = '<div class="emptyState" style="padding:6px 0;">아직 만든 카테고리가 없어요.<br>그래도 "방문 전"에는 자동으로 담겨요.</div>';
+  } else {
+    listEl2.innerHTML = customCategoryOrder.filter(k=>CAT_INFO[k]).map(k=>`
+      <label class="catPickRow">
+        <input type="checkbox" value="${k}">
+        <span>${CAT_INFO[k].emoji} ${escapeHtml(CAT_INFO[k].label)}</span>
+      </label>`).join('');
+  }
+  document.getElementById('catPickModal').style.display = 'flex';
+}
+function closeCatPickModal(){
+  document.getElementById('catPickModal').style.display = 'none';
+  pendingSearchResult = null;
   clearPreviewMarkers();
   document.getElementById('searchResults').innerHTML = '';
   document.getElementById('searchInput').value = '';
 }
+document.getElementById('catPickConfirmBtn').addEventListener('click', ()=>{
+  if(!pendingSearchResult) return;
+  const checked = Array.from(document.querySelectorAll('#catPickList input[type=checkbox]:checked')).map(el=>el.value);
+  const categories = ['before_visit', ...checked];
+  const { name, lat, lng, address } = pendingSearchResult;
+  finalizePlace(name, categories, lat, lng, address);
+  map.setCenter(new kakao.maps.LatLng(lat, lng));
+  map.setLevel(4);
+  closeCatPickModal();
+});
+document.getElementById('catPickCancelBtn').addEventListener('click', closeCatPickModal);
+document.getElementById('catPickModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'catPickModal') closeCatPickModal();
+});
  
+/* ---------- 장소 삭제/메모 ---------- */
 function removePlace(id){
   const idx = places.findIndex(x=>x.id===id);
   if(idx === -1) return;
@@ -498,6 +647,7 @@ function editMemo(id, value){
   saveToStorage();
 }
  
+/* ---------- 목록 렌더링 ---------- */
 function renderPlaceList(){
   const label = (selectedCat && CAT_INFO[selectedCat]) ? CAT_INFO[selectedCat].label : '없음';
   activeCatLabel.textContent = label;
@@ -508,7 +658,7 @@ function renderPlaceList(){
     return;
   }
   const query = (localFilterInput.value || '').trim().toLowerCase();
-  let filtered = places.filter(p => p.category === selectedCat);
+  let filtered = places.filter(p => p.categories.includes(selectedCat));
   if(query) filtered = filtered.filter(p => p.name.toLowerCase().includes(query));
  
   countText.textContent = filtered.length;
