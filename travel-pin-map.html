@@ -800,7 +800,7 @@ function deleteCategory(key){
   if(!info) return;
   if(!confirm(`"${info.label}" 카테고리를 삭제할까요?\n이 카테고리에 담긴 장소도 함께 삭제돼요.`)) return;
   places.filter(p => p.categories.includes(key)).forEach(p => {
-    p.overlay.setMap(null);
+    if(p.overlay) p.overlay.setMap(null);
     if(p.gMarker) p.gMarker.setMap(null);
   });
   places = places.filter(p => !p.categories.includes(key));
@@ -968,6 +968,7 @@ function makePinElement(id, visited, emoji){
 }
  
 function createOverlay(id, lat, lng, visited, emoji){
+  if(typeof kakao === 'undefined' || !kakao.maps || !map) return null;
   return new kakao.maps.CustomOverlay({
     position: new kakao.maps.LatLng(lat, lng),
     content: makePinElement(id, visited, emoji),
@@ -1019,7 +1020,7 @@ function ensureGoogleMarkers(){
 }
  
 function updateMarkerVisuals(p){
-  p.overlay.setContent(makePinElement(p.id, p.visited, p.emoji));
+  if(p.overlay) p.overlay.setContent(makePinElement(p.id, p.visited, p.emoji));
   if(p.gMarker){
     p.gMarker.setIcon(makeGoogleIcon(p.visited));
     p.gMarker.setLabel({ text: p.emoji || '📍', fontSize: '13px' });
@@ -1045,11 +1046,13 @@ function applyMapFilter(){
       emojiToShow = getDisplayEmoji(p.categories);
     }
  
-    if(visible){
-      p.overlay.setContent(makePinElement(p.id, p.visited, emojiToShow));
-      p.overlay.setMap(map);
-    } else {
-      p.overlay.setMap(null);
+    if(p.overlay){
+      if(visible){
+        p.overlay.setContent(makePinElement(p.id, p.visited, emojiToShow));
+        p.overlay.setMap(map);
+      } else {
+        p.overlay.setMap(null);
+      }
     }
  
     if(p.gMarker){
@@ -1393,7 +1396,7 @@ document.getElementById('catPickModal').addEventListener('click', (e)=>{
 function removePlace(id){
   const idx = places.findIndex(x=>x.id===id);
   if(idx === -1) return;
-  places[idx].overlay.setMap(null);
+  if(places[idx].overlay) places[idx].overlay.setMap(null);
   if(places[idx].gMarker) places[idx].gMarker.setMap(null);
   places.splice(idx,1);
   saveToStorage();
@@ -1584,27 +1587,43 @@ function initGoogleMapInstance(){
 }
 onGoogleMapsReady(function(){ /* SDK만 준비, 실제 지도 생성은 '해외' 탭을 처음 누를 때 */ });
  
-kakao.maps.load(function(){
-  const container = document.getElementById('map');
-  map = new kakao.maps.Map(container, {
-    center: new kakao.maps.LatLng(37.5665, 126.9780),
-    level: 7
-  });
-  map.setZoomable(true);
-  ps = new kakao.maps.services.Places();
- 
-  initData();
- 
-  if(navigator.geolocation){
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        map.setCenter(new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
-        map.setLevel(5);
-      },
-      () => {}
-    );
+function showMapOfflineNotice(){
+  const el = document.getElementById('map');
+  if(el){
+    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:24px;text-align:center;color:#7C7264;font-size:13px;line-height:1.7;">📡 인터넷 연결이 없어서<br>지도를 불러올 수 없어요.<br>왼쪽 목록은 저장된 내용 그대로<br>볼 수 있어요.</div>';
   }
-});
+}
+ 
+function startApp(){
+  if(typeof kakao !== 'undefined' && kakao.maps){
+    kakao.maps.load(function(){
+      const container = document.getElementById('map');
+      map = new kakao.maps.Map(container, {
+        center: new kakao.maps.LatLng(37.5665, 126.9780),
+        level: 7
+      });
+      map.setZoomable(true);
+      ps = new kakao.maps.services.Places();
+ 
+      initData();
+ 
+      if(navigator.geolocation){
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            map.setCenter(new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
+            map.setLevel(5);
+          },
+          () => {}
+        );
+      }
+    });
+  } else {
+    // 카카오맵 SDK 자체를 못 불러온 상태 (오프라인 등) → 지도 없이 목록만이라도 보여줌
+    showMapOfflineNotice();
+    initData();
+  }
+}
+startApp();
  
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
